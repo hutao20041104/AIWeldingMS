@@ -1,3 +1,4 @@
+import logging
 from io import BytesIO
 from pathlib import Path
 from typing import Any, Optional
@@ -16,6 +17,7 @@ from core.auth import JWTAuth
 
 router = Router(tags=["students"])
 User = get_user_model()
+logger = logging.getLogger(__name__)
 
 
 class StudentOut(Schema):
@@ -161,8 +163,10 @@ def _validate_student_rows(row_dicts: list[dict[str, Any]]):
 
 @router.get("/template", auth=JWTAuth())
 def download_student_template(request):
+    logger.info("Download student template requested user_id=%s", getattr(request.auth, "id", None))
     template_path = Path(settings.BASE_DIR) / "templates" / "data_template" / "student_upload_template.xlsx"
     if not template_path.exists():
+        logger.error("Student template missing path=%s", template_path)
         return JsonResponse({"message": "模板文件不存在，请联系管理员"}, status=400)
 
     response = FileResponse(
@@ -176,10 +180,13 @@ def download_student_template(request):
 @router.post("/import/validate", auth=JWTAuth(), response={200: StudentImportValidateOut, 400: dict, 403: dict})
 def validate_students_import(request, file: UploadedFile = File(...)):
     if request.auth.role != "teacher":
+        logger.warning("Validate students import forbidden user_id=%s role=%s", getattr(request.auth, "id", None), request.auth.role)
         return 403, {"message": "仅教师可执行导入"}
 
+    logger.info("Validate students import start user_id=%s filename=%s", getattr(request.auth, "id", None), file.name)
     row_dicts, error = _parse_student_rows(file)
     if error:
+        logger.warning("Validate students import failed user_id=%s reason=%s", getattr(request.auth, "id", None), error)
         return 400, {"message": error}
 
     valid_rows, invalid_rows = _validate_student_rows(row_dicts)
@@ -188,6 +195,14 @@ def validate_students_import(request, file: UploadedFile = File(...)):
         f"student_import:{import_id}",
         {"valid_rows": valid_rows, "invalid_rows": invalid_rows, "total_rows": len(row_dicts)},
         timeout=1800,
+    )
+    logger.info(
+        "Validate students import done user_id=%s total=%s valid=%s invalid=%s import_id=%s",
+        getattr(request.auth, "id", None),
+        len(row_dicts),
+        len(valid_rows),
+        len(invalid_rows),
+        import_id,
     )
 
     if len(valid_rows) == len(row_dicts):
@@ -212,18 +227,23 @@ def validate_students_import(request, file: UploadedFile = File(...)):
 @router.post("/import/commit", auth=JWTAuth(), response={200: StudentImportCommitOut, 400: dict, 403: dict})
 def commit_students_import(request, payload: StudentImportCommitIn):
     if request.auth.role != "teacher":
+        logger.warning("Commit students import forbidden user_id=%s role=%s", getattr(request.auth, "id", None), request.auth.role)
         return 403, {"message": "仅教师可执行导入"}
 
+    logger.info("Commit students import start user_id=%s import_id=%s ignore_invalid=%s", getattr(request.auth, "id", None), payload.import_id, payload.ignore_invalid)
     cached = cache.get(f"student_import:{payload.import_id}")
     if not cached:
+        logger.warning("Commit students import failed user_id=%s import_id=%s reason=session_expired", getattr(request.auth, "id", None), payload.import_id)
         return 400, {"message": "导入会话已过期，请重新上传文件"}
 
     valid_rows = cached.get("valid_rows", [])
     invalid_rows = cached.get("invalid_rows", [])
     total_rows = cached.get("total_rows", 0)
     if not valid_rows:
+        logger.warning("Commit students import failed user_id=%s import_id=%s reason=no_valid_rows", getattr(request.auth, "id", None), payload.import_id)
         return 400, {"message": "数据有误，请先修正后再导入"}
     if invalid_rows and not payload.ignore_invalid:
+        logger.warning("Commit students import blocked user_id=%s import_id=%s reason=invalid_rows_need_confirm", getattr(request.auth, "id", None), payload.import_id)
         return 400, {"message": "存在异常数据，请选择忽视异常后再继续导入"}
 
     imported_count = 0
@@ -254,6 +274,14 @@ def commit_students_import(request, payload: StudentImportCommitIn):
             imported_count += 1
 
     cache.delete(f"student_import:{payload.import_id}")
+    logger.info(
+        "Commit students import done user_id=%s import_id=%s imported=%s skipped_existing=%s invalid=%s",
+        getattr(request.auth, "id", None),
+        payload.import_id,
+        imported_count,
+        skipped_existing_count,
+        len(invalid_rows),
+    )
     return {
         "message": "导入完成",
         "total_rows": total_rows,
@@ -266,14 +294,18 @@ def commit_students_import(request, payload: StudentImportCommitIn):
 @router.get("/import/{import_id}/invalid-template", auth=JWTAuth())
 def download_invalid_template(request, import_id: str):
     if request.auth.role != "teacher":
+        logger.warning("Download invalid template forbidden user_id=%s role=%s", getattr(request.auth, "id", None), request.auth.role)
         return JsonResponse({"message": "仅教师可下载"}, status=403)
 
+    logger.info("Download invalid template requested user_id=%s import_id=%s", getattr(request.auth, "id", None), import_id)
     cached = cache.get(f"student_import:{import_id}")
     if not cached:
+        logger.warning("Download invalid template failed import_id=%s reason=session_expired", import_id)
         return JsonResponse({"message": "导入会话已过期，请重新上传文件"}, status=400)
 
     invalid_rows = cached.get("invalid_rows", [])
     if not invalid_rows:
+        logger.warning("Download invalid template failed import_id=%s reason=no_invalid_rows", import_id)
         return JsonResponse({"message": "当前没有异常数据"}, status=400)
 
     wb = Workbook()
@@ -312,8 +344,17 @@ def list_students(
     class_name: Optional[str] = None,
 ):
     if request.auth.role != "teacher":
+        logger.warning("List students forbidden user_id=%s role=%s", getattr(request.auth, "id", None), request.auth.role)
         return 403, {"message": "仅教师可查看学生信息"}
 
+    logger.info(
+        "List students requested user_id=%s filters(identity_code=%s, major_code=%s, class_code=%s, class_name=%s)",
+        getattr(request.auth, "id", None),
+        identity_code,
+        major_code,
+        class_code,
+        class_name,
+    )
     queryset = Student.objects.select_related("user").filter(user__role="student")
     if identity_code:
         queryset = queryset.filter(user__identity_code__icontains=identity_code.strip())

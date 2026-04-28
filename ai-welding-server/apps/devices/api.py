@@ -1,3 +1,4 @@
+import logging
 from typing import Optional
 
 from ninja import Router, Schema
@@ -6,6 +7,7 @@ from apps.devices.models import Device
 from core.auth import JWTAuth
 
 router = Router(tags=["devices"])
+logger = logging.getLogger(__name__)
 
 
 class DeviceOut(Schema):
@@ -26,8 +28,16 @@ def list_devices(
     classroom: Optional[str] = None,
 ):
     if request.auth.role != "teacher":
+        logger.warning("List devices forbidden user_id=%s role=%s", getattr(request.auth, "id", None), request.auth.role)
         return 403, {"message": "仅教师可查看设备信息"}
 
+    logger.info(
+        "List devices requested user_id=%s filters(device_code=%s, status=%s, classroom=%s)",
+        getattr(request.auth, "id", None),
+        device_code,
+        status,
+        classroom,
+    )
     queryset = Device.objects.all()
     if device_code:
         queryset = queryset.filter(device_code__icontains=device_code.strip())

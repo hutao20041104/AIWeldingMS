@@ -150,3 +150,54 @@ CORS_ALLOWED_ORIGINS = [
 # TODO: 上线时使用Aliyun-OSS服务
 MEDIA_URL = '/uploads/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'uploads')
+
+# Logging
+LOG_DIR = BASE_DIR / "logs"
+os.makedirs(LOG_DIR, exist_ok=True)
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "verbose": {
+            "format": "%(asctime)s [%(levelname)s] %(name)s:%(lineno)d - %(message)s",
+        },
+    },
+    "handlers": {
+        "all_file": {
+            "level": "DEBUG",
+            "class": "logging.FileHandler",
+            "filename": str(LOG_DIR / "app.log"),
+            "formatter": "verbose",
+            "encoding": "utf-8",
+        },
+        "error_file": {
+            "level": "ERROR",
+            "class": "logging.FileHandler",
+            "filename": str(LOG_DIR / "error.log"),
+            "formatter": "verbose",
+            "encoding": "utf-8",
+        },
+        "console": {
+            "level": "INFO",
+            "class": "logging.StreamHandler",
+            "formatter": "verbose",
+        },
+    },
+    "root": {
+        "handlers": ["all_file", "error_file", "console"],
+        "level": "DEBUG",
+    },
+    "loggers": {
+        "django": {
+            "handlers": ["all_file", "error_file", "console"],
+            "level": "INFO",
+            "propagate": False,
+        },
+        "apps": {
+            "handlers": ["all_file", "error_file", "console"],
+            "level": "DEBUG",
+            "propagate": False,
+        },
+    },
+}

@@ -1,3 +1,4 @@
+import logging
 from typing import Optional
 
 import jwt
@@ -16,6 +17,7 @@ from core.auth import (
 
 router = Router(tags=["auth"])
 User = get_user_model()
+logger = logging.getLogger(__name__)
 
 
 class LoginIn(Schema):
@@ -74,18 +76,22 @@ def _user_payload(user):
 
 @router.post("/login", response={200: LoginOut, 401: dict, 403: dict, 400: dict})
 def login_api(request, payload: LoginIn):
+    logger.info("Login attempt identity_code=%s", payload.identity_code)
     user = authenticate(
         request,
         identity_code=payload.identity_code,
         password=payload.password,
     )
     if user is None:
+        logger.warning("Login failed identity_code=%s reason=invalid_credentials", payload.identity_code)
         return 401, {"message": "identity_code 或 password 错误"}
     if user.role == "teacher" and not user.is_approved:
+        logger.warning("Login blocked identity_code=%s reason=teacher_not_approved", payload.identity_code)
         return 403, {"message": "账号异常，请联系管理员"}
 
     access_token = create_access_token(user.id)
     refresh_token = create_refresh_token(user.id)
+    logger.info("Login success identity_code=%s user_id=%s role=%s", payload.identity_code, user.id, user.role)
     return {
         "user": _user_payload(user),
         "tokens": {
@@ -98,9 +104,12 @@ def login_api(request, payload: LoginIn):
 
 @router.post("/register/teacher", response={201: dict, 400: dict})
 def register_teacher(request, payload: TeacherRegisterIn):
+    logger.info("Teacher register attempt identity_code=%s username=%s", payload.identity_code, payload.username)
     if User.objects.filter(identity_code=payload.identity_code).exists():
+        logger.warning("Teacher register failed identity_code=%s reason=identity_code_exists", payload.identity_code)
         return 400, {"message": "identity_code 已存在"}
     if User.objects.filter(username=payload.username).exists():
+        logger.warning("Teacher register failed username=%s reason=username_exists", payload.username)
         return 400, {"message": "username 已存在"}
 
     teacher_user = User.objects.create_user(
@@ -112,32 +121,39 @@ def register_teacher(request, payload: TeacherRegisterIn):
         is_approved=False,
     )
     Teacher.objects.create(user=teacher_user)
+    logger.info("Teacher register success identity_code=%s user_id=%s", payload.identity_code, teacher_user.id)
     return 201, {"message": "教师注册成功，请等待管理员审核"}
 
 
 @router.post("/refresh", response={200: TokenPairOut, 401: dict, 400: dict})
 def refresh(request, payload: RefreshIn):
+    logger.info("Refresh token attempt")
     try:
         decoded = decode_token(payload.refresh_token)
     except jwt.PyJWTError:
+        logger.warning("Refresh token failed reason=invalid_token")
         return 401, {"message": "refresh_token 无效"}
 
     if decoded.get("type") != "refresh":
+        logger.warning("Refresh token failed reason=wrong_token_type type=%s", decoded.get("type"))
         return 400, {"message": "token 类型错误"}
 
     # 延迟导入避免循环依赖
     from core.auth import is_token_blacklisted
 
     if is_token_blacklisted(decoded):
+        logger.warning("Refresh token failed reason=blacklisted jti=%s", decoded.get("jti"))
         return 401, {"message": "refresh_token 已失效"}
 
     user_id = decoded.get("sub")
     if not user_id:
+        logger.warning("Refresh token failed reason=missing_sub")
         return 401, {"message": "refresh_token 无效"}
 
     access_token = create_access_token(user_id)
     refresh_token = create_refresh_token(user_id)
     blacklist_token(decoded)
+    logger.info("Refresh token success user_id=%s", user_id)
     return {
         "access_token": access_token,
         "refresh_token": refresh_token,
@@ -147,6 +163,8 @@ def refresh(request, payload: RefreshIn):
 
 @router.post("/logout", auth=JWTAuth(), response={200: dict, 401: dict})
 def logout(request, payload: LogoutIn):
+    user_id = getattr(request.auth, "id", None)
+    logger.info("Logout attempt user_id=%s", user_id)
     auth_header = request.headers.get("Authorization", "")
     if auth_header.startswith("Bearer "):
         access_token = auth_header.replace("Bearer ", "", 1).strip()
@@ -163,9 +181,11 @@ def logout(request, payload: LogoutIn):
         except jwt.PyJWTError:
             pass
 
+    logger.info("Logout success user_id=%s", user_id)
     return {"message": "退出登录成功"}
 
 
 @router.get("/whoami", auth=JWTAuth(), response=UserOut)
 def whoami(request):
+    logger.debug("Whoami requested user_id=%s", getattr(request.auth, "id", None))
     return _user_payload(request.auth)
