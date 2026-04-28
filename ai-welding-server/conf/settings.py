@@ -132,6 +132,11 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 AUTH_USER_MODEL = 'users.User'
 
+AUTHENTICATION_BACKENDS = [
+    "apps.users.backends.IdentityCodeBackend",
+    "django.contrib.auth.backends.ModelBackend",
+]
+
 # TODO: 上线时使用Aliyun-OSS服务
 MEDIA_URL = '/uploads/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'uploads')

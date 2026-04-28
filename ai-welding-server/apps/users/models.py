@@ -14,7 +14,6 @@ class User(AbstractUser):
 
     # User Roles
     ROLE_CHOICES = [
-        ('admin', 'Administrator'),
         ('teacher', 'Teacher'),
         ('student', 'Student'),
     ]
