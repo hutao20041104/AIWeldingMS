@@ -1,0 +1,89 @@
+{% extends "admin/change_form.html" %}
+
+{% block extrastyle %}
+  {{ block.super }}
+  <style>
+    .field-password_mask .readonly {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      width: 100%;
+      margin-bottom: 4px;
+    }
+
+    .field-password_mask .password-mask {
+      letter-spacing: 2px;
+      font-weight: 600;
+    }
+
+    .field-password_mask .password-reset-link {
+      margin-left: 130px;
+      display: inline-block;
+      text-decoration: none;
+      padding: 4px 10px;
+      border: 1px solid #d0d7de;
+      border-radius: 6px;
+      color: #24292f;
+      background: #f6f8fa;
+      font-size: 12px;
+      line-height: 20px;
+    }
+
+    .field-password_mask .password-reset-link:hover {
+      background: #eef1f4;
+    }
+
+    .review-action-link {
+      text-decoration: none;
+      color: #0b57d0;
+      font-weight: 600;
+    }
+  </style>
+{% endblock %}
+
+{% block admin_change_form_document_ready %}
+  {{ block.super }}
+  <script>
+    (function () {
+      const links = document.querySelectorAll(".review-action-link");
+      const feedbackEl = document.getElementById("review-action-feedback");
+      if (!links.length) return;
+
+      links.forEach((link) => {
+        link.addEventListener("click", async (e) => {
+          e.preventDefault();
+          const target = e.currentTarget;
+          if (!(target instanceof HTMLAnchorElement)) return;
+
+          target.style.pointerEvents = "none";
+          target.style.opacity = "0.65";
+          if (feedbackEl) feedbackEl.textContent = "处理中...";
+
+          try {
+            const res = await fetch(target.href, {
+              method: "GET",
+              headers: { "X-Requested-With": "XMLHttpRequest" },
+              credentials: "same-origin",
+            });
+            const data = await res.json();
+            if (feedbackEl) feedbackEl.textContent = data.message || "操作成功";
+
+          } catch (err) {
+            if (feedbackEl) feedbackEl.textContent = "操作失败，请重试";
+          } finally {
+            target.style.pointerEvents = "";
+            target.style.opacity = "";
+          }
+        });
+      });
+
+      document.querySelectorAll('input[name="_save"]').forEach((el) => {
+        el.value = "保存";
+      });
+      document.querySelectorAll('input[name="_continue"]').forEach((el) => {
+        el.value = "保存并继续编辑";
+      });
+
+    })();
+  </script>
+{% endblock %}

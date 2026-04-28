@@ -1,0 +1,15 @@
+{% extends "admin/change_list.html" %}
+
+{% block object-tools-items %}
+  <li>
+    <a href="{% url 'admin:devices_device_download_template' %}">下载设备模板</a>
+  </li>
+  <li>
+    <form action="{% url 'admin:devices_device_upload' %}" method="post" enctype="multipart/form-data" style="display:inline-flex;gap:8px;align-items:center;">
+      {% csrf_token %}
+      <input type="file" name="file" accept=".xlsx" required />
+      <button type="submit" class="button">上传导入</button>
+    </form>
+  </li>
+  {{ block.super }}
+{% endblock %}

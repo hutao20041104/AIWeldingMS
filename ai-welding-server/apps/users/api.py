@@ -2,8 +2,10 @@ from typing import Optional
 
 import jwt
 from django.contrib.auth import authenticate
+from django.contrib.auth import get_user_model
 from ninja import Router, Schema
 
+from apps.users.models import Teacher
 from core.auth import (
     JWTAuth,
     blacklist_token,
@@ -13,6 +15,7 @@ from core.auth import (
 )
 
 router = Router(tags=["auth"])
+User = get_user_model()
 
 
 class LoginIn(Schema):
@@ -28,11 +31,19 @@ class LogoutIn(Schema):
     refresh_token: Optional[str] = None
 
 
+class TeacherRegisterIn(Schema):
+    identity_code: str
+    username: str
+    password: str
+    tel: Optional[str] = None
+
+
 class UserOut(Schema):
     id: str
     identity_code: str
     username: str
     role: str
+    is_approved: bool
     avatar: Optional[str] = None
     tel: Optional[str] = None
 
@@ -55,12 +66,13 @@ def _user_payload(user):
         "identity_code": user.identity_code,
         "username": user.username,
         "role": user.role,
+        "is_approved": user.is_approved,
         "avatar": avatar_url,
         "tel": user.tel,
     }
 
 
-@router.post("/login", response={200: LoginOut, 401: dict, 400: dict})
+@router.post("/login", response={200: LoginOut, 401: dict, 403: dict, 400: dict})
 def login_api(request, payload: LoginIn):
     user = authenticate(
         request,
@@ -69,6 +81,8 @@ def login_api(request, payload: LoginIn):
     )
     if user is None:
         return 401, {"message": "identity_code 或 password 错误"}
+    if user.role == "teacher" and not user.is_approved:
+        return 403, {"message": "账号异常，请联系管理员"}
 
     access_token = create_access_token(user.id)
     refresh_token = create_refresh_token(user.id)
@@ -80,6 +94,25 @@ def login_api(request, payload: LoginIn):
             "token_type": "Bearer",
         },
     }
+
+
+@router.post("/register/teacher", response={201: dict, 400: dict})
+def register_teacher(request, payload: TeacherRegisterIn):
+    if User.objects.filter(identity_code=payload.identity_code).exists():
+        return 400, {"message": "identity_code 已存在"}
+    if User.objects.filter(username=payload.username).exists():
+        return 400, {"message": "username 已存在"}
+
+    teacher_user = User.objects.create_user(
+        username=payload.username,
+        identity_code=payload.identity_code,
+        password=payload.password,
+        role="teacher",
+        tel=payload.tel,
+        is_approved=False,
+    )
+    Teacher.objects.create(user=teacher_user)
+    return 201, {"message": "教师注册成功，请等待管理员审核"}
 
 
 @router.post("/refresh", response={200: TokenPairOut, 401: dict, 400: dict})

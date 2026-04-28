@@ -1,0 +1,100 @@
+{% extends "admin/change_list.html" %}
+
+{% block extrastyle %}
+  {{ block.super }}
+  <style>
+    .catalog-inline {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      margin-left: 8px;
+    }
+    .catalog-inline input[type='file'] {
+      max-width: 210px;
+    }
+    .catalog-inline .button {
+      border-radius: 6px;
+    }
+    .import-popup-mask {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.35);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+    .import-popup {
+      width: min(760px, 92vw);
+      background: #fff;
+      border-radius: 10px;
+      border: 1px solid #d8dee8;
+      box-shadow: 0 16px 40px rgba(15, 23, 42, 0.18);
+      overflow: hidden;
+    }
+    .import-popup__header {
+      padding: 12px 16px;
+      font-weight: 700;
+      border-bottom: 1px solid #e5eaf0;
+    }
+    .import-popup__header.error { color: #b42318; }
+    .import-popup__header.success { color: #027a48; }
+    .import-popup__body {
+      padding: 12px 16px;
+      max-height: 360px;
+      overflow: auto;
+    }
+    .import-popup__body ul {
+      margin: 0;
+      padding-left: 20px;
+      line-height: 1.7;
+    }
+    .import-popup__footer {
+      padding: 10px 16px 14px;
+      text-align: right;
+      border-top: 1px solid #e5eaf0;
+    }
+    .import-popup__btn {
+      border: 1px solid #cdd6e1;
+      border-radius: 6px;
+      padding: 6px 12px;
+      background: #f8fafc;
+      cursor: pointer;
+    }
+  </style>
+{% endblock %}
+
+{% block object-tools-items %}
+  {{ block.super }}
+  <li>
+    <div class="catalog-inline">
+      <a class="button" href="{% url 'admin:users_majorcatalog_download_template' %}">下载专业模板</a>
+      <form action="{% url 'admin:users_majorcatalog_upload' %}" method="post" enctype="multipart/form-data" style="display:inline-flex;gap:8px;align-items:center;">
+        {% csrf_token %}
+        <input type="file" name="file" accept=".xlsx" required />
+        <button type="submit" class="button default">上传并校验导入</button>
+      </form>
+    </div>
+  </li>
+{% endblock %}
+
+{% block content %}
+  {{ block.super }}
+  {% if import_popup %}
+    <div class="import-popup-mask" id="importPopupMask">
+      <div class="import-popup" role="dialog" aria-modal="true">
+        <div class="import-popup__header {{ import_popup.level|default:'error' }}">{{ import_popup.title }}</div>
+        <div class="import-popup__body">
+          <ul>
+            {% for line in import_popup.lines %}
+              <li>{{ line }}</li>
+            {% endfor %}
+          </ul>
+        </div>
+        <div class="import-popup__footer">
+          <button class="import-popup__btn" type="button" onclick="document.getElementById('importPopupMask').remove()">我知道了</button>
+        </div>
+      </div>
+    </div>
+  {% endif %}
+{% endblock %}

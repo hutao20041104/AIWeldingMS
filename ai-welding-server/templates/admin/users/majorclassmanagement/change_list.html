@@ -1,0 +1,18 @@
+{% extends "admin/change_list.html" %}
+
+{% block result_list %}{% endblock %}
+
+{% block content %}
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;margin-top:10px;">
+    <section style="border:1px solid #dde3ea;border-radius:10px;padding:16px;background:#fff;">
+      <h3 style="margin:0 0 10px;">专业字典管理</h3>
+      <p style="margin:0 0 12px;color:#5b6472;">当前专业数量：{{ major_count }}</p>
+      <a class="button" href="{{ major_url }}">进入专业管理</a>
+    </section>
+    <section style="border:1px solid #dde3ea;border-radius:10px;padding:16px;background:#fff;">
+      <h3 style="margin:0 0 10px;">班级字典管理</h3>
+      <p style="margin:0 0 12px;color:#5b6472;">当前班级数量：{{ class_count }}</p>
+      <a class="button" href="{{ class_url }}">进入班级管理</a>
+    </section>
+  </div>
+{% endblock %}
