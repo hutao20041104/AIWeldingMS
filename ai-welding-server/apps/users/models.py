@@ -51,3 +51,18 @@ class Student(models.Model):
 
     class Meta:
         db_table = 'students'
+
+
+class BlacklistedToken(models.Model):
+    token_id = models.UUIDField(unique=True, verbose_name="JWT Token ID")
+    token_type = models.CharField(max_length=16, verbose_name="Token Type")
+    expires_at = models.DateTimeField(verbose_name="Expiration Time")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Created At")
+
+    class Meta:
+        db_table = "blacklisted_tokens"
+        verbose_name = "Blacklisted Token"
+        verbose_name_plural = "Blacklisted Tokens"
+
+    def __str__(self):
+        return f"{self.token_type}:{self.token_id}"
