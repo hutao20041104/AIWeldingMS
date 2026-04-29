@@ -595,6 +595,7 @@ def current_monitor(request):
                 "student_id": str(item.student_id),
                 "identity_code": item.student.user.identity_code,
                 "username": item.student.user.username,
+                "avatar": item.student.user.avatar.url if item.student.user.avatar else None,
                 "major": item.student.major,
                 "class_name": item.student.class_name,
             }
@@ -609,6 +610,7 @@ def current_monitor(request):
             "start_time": course.start_time.isoformat(),
             "end_time": course.end_time.isoformat(),
             "assistant_student_name": course.assistant_student.user.username if course.assistant_student_id else None,
+            "assistant_student_avatar": course.assistant_student.user.avatar.url if course.assistant_student_id and course.assistant_student.user.avatar else None,
             "student_count": course.students.count(),
         },
         "devices": [
