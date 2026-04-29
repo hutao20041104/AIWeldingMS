@@ -69,3 +69,23 @@ class CourseGroupAssignment(models.Model):
         constraints = [
             models.UniqueConstraint(fields=["course", "student"], name="uniq_course_group_student"),
         ]
+
+
+class DeviceTelemetry(models.Model):
+    course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name="telemetry_records", verbose_name="课程")
+    device = models.ForeignKey("devices.Device", on_delete=models.CASCADE, related_name="telemetry_records", verbose_name="设备")
+    current = models.FloatField(verbose_name="电流(A)")
+    voltage = models.FloatField(verbose_name="电压(V)")
+    wire_feed_speed = models.FloatField(verbose_name="送丝速度")
+    recorded_at = models.DateTimeField(db_index=True, verbose_name="记录时间")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="创建时间")
+
+    class Meta:
+        db_table = "device_telemetry_records"
+        verbose_name = "设备遥测记录"
+        verbose_name_plural = "设备遥测记录"
+        ordering = ["-recorded_at"]
+        indexes = [
+            models.Index(fields=["course", "device", "-recorded_at"], name="idx_telemetry_course_dev_time"),
+            models.Index(fields=["course", "-recorded_at"], name="idx_telemetry_course_time"),
+        ]

@@ -7,7 +7,7 @@ from django.db import transaction
 from django.utils import timezone
 from ninja import Router, Schema
 
-from apps.courses.models import Course, CourseGroupAssignment, CourseStudent
+from apps.courses.models import Course, CourseGroupAssignment, CourseStudent, DeviceTelemetry
 from apps.devices.models import Device
 from apps.users.models import ClassCatalog, MajorCatalog, Student, Teacher
 from core.auth import JWTAuth
@@ -72,6 +72,13 @@ class GroupAssignmentIn(Schema):
 
 class GroupSaveIn(Schema):
     assignments: list[GroupAssignmentIn]
+
+
+class TelemetryPointOut(Schema):
+    recorded_at: str
+    current: float
+    voltage: float
+    wire_feed_speed: float
 
 
 STATUS_LABELS = {
@@ -158,6 +165,13 @@ def _can_manage_grouping(course: Course, user) -> bool:
     if user.role == "student" and course.assistant_student and course.assistant_student.user_id == user.id:
         return True
     return False
+
+
+def _get_course_for_manager(request, course_id: int) -> Optional[Course]:
+    teacher = _teacher_profile_or_none(request.auth) if request.auth.role == "teacher" else None
+    if request.auth.role == "teacher":
+        return Course.objects.filter(id=course_id, teacher=teacher).first()
+    return Course.objects.filter(id=course_id).first()
 
 
 def _validate_grouping_or_raise(course: Course, assignments: list[tuple[str, int]]) -> None:
@@ -409,11 +423,7 @@ def delete_course(request, course_id: int):
 
 @router.get("/{course_id}/grouping/", auth=JWTAuth(), response={200: dict, 403: dict, 404: dict})
 def get_grouping(request, course_id: int):
-    teacher = _teacher_profile_or_none(request.auth) if request.auth.role == "teacher" else None
-    if request.auth.role == "teacher":
-        course = Course.objects.filter(id=course_id, teacher=teacher).first()
-    else:
-        course = Course.objects.filter(id=course_id).first()
+    course = _get_course_for_manager(request, course_id)
     if not course:
         return 404, {"message": "课程不存在"}
     if not _can_manage_grouping(course, request.auth):
@@ -457,11 +467,7 @@ def get_grouping(request, course_id: int):
 
 @router.post("/{course_id}/grouping/random/", auth=JWTAuth(), response={200: dict, 400: dict, 403: dict, 404: dict})
 def random_grouping(request, course_id: int):
-    teacher = _teacher_profile_or_none(request.auth) if request.auth.role == "teacher" else None
-    if request.auth.role == "teacher":
-        course = Course.objects.filter(id=course_id, teacher=teacher).first()
-    else:
-        course = Course.objects.filter(id=course_id).first()
+    course = _get_course_for_manager(request, course_id)
     if not course:
         return 404, {"message": "课程不存在"}
     if not _can_manage_grouping(course, request.auth):
@@ -485,11 +491,7 @@ def random_grouping(request, course_id: int):
 
 @router.put("/{course_id}/grouping/", auth=JWTAuth(), response={200: dict, 400: dict, 403: dict, 404: dict})
 def save_grouping(request, course_id: int, payload: GroupSaveIn):
-    teacher = _teacher_profile_or_none(request.auth) if request.auth.role == "teacher" else None
-    if request.auth.role == "teacher":
-        course = Course.objects.filter(id=course_id, teacher=teacher).first()
-    else:
-        course = Course.objects.filter(id=course_id).first()
+    course = _get_course_for_manager(request, course_id)
     if not course:
         return 404, {"message": "课程不存在"}
     if not _can_manage_grouping(course, request.auth):
@@ -500,6 +502,66 @@ def save_grouping(request, course_id: int, payload: GroupSaveIn):
     except ValueError as exc:
         return 400, {"message": str(exc)}
     return {"message": "分组保存成功"}
+
+
+@router.get("/{course_id}/telemetry/", auth=JWTAuth(), response={200: dict, 403: dict, 404: dict})
+def telemetry_by_course(request, course_id: int, device_id: Optional[int] = None, limit: int = 120):
+    course = _get_course_for_manager(request, course_id)
+    if not course:
+        return 404, {"message": "课程不存在"}
+    if not _can_manage_grouping(course, request.auth):
+        return 403, {"message": "无遥测查看权限"}
+
+    limit = max(10, min(limit, 600))
+    devices_qs = Device.objects.filter(classroom=course.classroom).order_by("device_code")
+    if device_id:
+        devices_qs = devices_qs.filter(id=device_id)
+    devices = list(devices_qs)
+    target_ids = [d.id for d in devices]
+
+    now = timezone.now()
+    records = (
+        DeviceTelemetry.objects.filter(
+            course=course,
+            device_id__in=target_ids,
+            recorded_at__gte=course.start_time,
+            recorded_at__lte=now,
+        )
+        .order_by("-recorded_at")
+        .values("device_id", "recorded_at", "current", "voltage", "wire_feed_speed")
+    )
+
+    grouped: dict[int, list[dict]] = {d.id: [] for d in devices}
+    counter: dict[int, int] = {d.id: 0 for d in devices}
+    for row in records:
+        did = row["device_id"]
+        if counter.get(did, 0) >= limit:
+            continue
+        grouped.setdefault(did, []).append(
+            {
+                "recorded_at": row["recorded_at"].isoformat(),
+                "current": float(row["current"]),
+                "voltage": float(row["voltage"]),
+                "wire_feed_speed": float(row["wire_feed_speed"]),
+            }
+        )
+        counter[did] = counter.get(did, 0) + 1
+        if all(v >= limit for v in counter.values()):
+            break
+
+    return {
+        "course_id": course.id,
+        "course_code": course.course_code,
+        "device_count": len(devices),
+        "series": [
+            {
+                "device_id": d.id,
+                "device_code": d.device_code,
+                "points": list(reversed(grouped.get(d.id, []))),
+            }
+            for d in devices
+        ],
+    }
 
 
 @router.get("/monitor/current/", auth=JWTAuth(), response={200: dict, 403: dict})
