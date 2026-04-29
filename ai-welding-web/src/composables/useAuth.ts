@@ -8,6 +8,7 @@ export type CurrentUser = {
   username: string
   role: Role
   is_approved: boolean
+  avatar?: string | null
 }
 
 export const API_BASE_URL =

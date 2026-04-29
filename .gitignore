@@ -74,3 +74,7 @@ Desktop.ini
 .coverage
 htmlcov/
 .ruff_cache/
+
+# 算法
+ai-welding-algo/
+runs/
