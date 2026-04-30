@@ -543,8 +543,8 @@ onMounted(async () => {
         </el-form-item>
 
         <el-form-item label="添加学生">
-          <div style="width: 100%">
-            <div style="display: flex; gap: 12px; margin-bottom: 12px">
+          <div class="student-panel-scroll" style="width: 100%">
+            <div class="student-filter-sticky" style="display: flex; gap: 12px; margin-bottom: 12px">
               <el-select v-model="studentFilters.major_code" clearable placeholder="按专业过滤" style="width: 180px">
                 <el-option v-for="item in majors" :key="item.code" :label="`${item.name}(${item.code})`" :value="item.code" />
               </el-select>
@@ -906,5 +906,27 @@ onMounted(async () => {
   margin-top: 12px;
   display: flex;
   justify-content: flex-end;
+}
+
+.student-panel-scroll {
+  max-height: 360px;
+  overflow-y: auto;
+  padding-right: 4px;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.student-panel-scroll::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
+.student-filter-sticky {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: rgba(255, 255, 255, 0.96);
+  backdrop-filter: blur(4px);
+  padding-bottom: 8px;
 }
 </style>

@@ -356,6 +356,8 @@ def create_course(request, payload: CourseSaveIn):
         return 400, {"message": str(exc)}
     if start_time >= end_time:
         return 400, {"message": "授课开始时间必须早于结束时间"}
+    if Course.objects.filter(teacher=teacher, start_time__lt=end_time, end_time__gt=start_time).exists():
+        return 400, {"message": "课程时间冲突，请调整授课时间"}
 
     students = list(Student.objects.filter(id__in=payload.student_ids))
     if len(students) != len(set(payload.student_ids)):
@@ -403,6 +405,12 @@ def update_course(request, course_id: int, payload: CourseSaveIn):
         return 400, {"message": str(exc)}
     if start_time >= end_time:
         return 400, {"message": "授课开始时间必须早于结束时间"}
+    if (
+        Course.objects.filter(teacher=teacher, start_time__lt=end_time, end_time__gt=start_time)
+        .exclude(id=course.id)
+        .exists()
+    ):
+        return 400, {"message": "课程时间冲突，请调整授课时间"}
 
     students = list(Student.objects.filter(id__in=payload.student_ids))
     if len(students) != len(set(payload.student_ids)):
