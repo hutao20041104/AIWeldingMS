@@ -212,13 +212,11 @@ onMounted(() => {
     <div class="assistant-layout">
       
       <!-- 左侧：历史会话列表 -->
-      <el-card class="assistant-card history" shadow="never">
-        <template #header>
-          <div class="history-header">
-            <span>最近会话</span>
-            <el-button type="primary" circle :icon="Plus" size="small" @click="createSession" title="新建会话" />
-          </div>
-        </template>
+      <div class="assistant-card history glass-card">
+        <div class="history-header">
+          <span>最近会话</span>
+          <el-button type="primary" circle :icon="Plus" size="small" @click="createSession" title="新建会话" class="gradient-btn" />
+        </div>
         <ul class="assistant-history">
           <li 
             v-for="session in sessions" 
@@ -230,10 +228,10 @@ onMounted(() => {
             <span class="session-title">{{ session.title }}</span>
           </li>
         </ul>
-      </el-card>
+      </div>
 
       <!-- 右侧：对话面板 -->
-      <el-card class="assistant-card chat" shadow="never" v-loading="!activeSessionId">
+      <div class="assistant-card chat glass-card" v-loading="!activeSessionId">
         <div class="assistant-messages" ref="msgContainer">
           <div
             v-for="(item, idx) in messages"
@@ -268,21 +266,79 @@ onMounted(() => {
             </el-button>
           </div>
         </div>
-      </el-card>
+      </div>
       
     </div>
   </section>
 </template>
 
 <style scoped>
+.module-page {
+  padding: 24px;
+  height: calc(100vh - 92px);
+  box-sizing: border-box;
+  overflow: hidden;
+  background-color: #f8fafc;
+  background-image: 
+    radial-gradient(at 40% 20%, hsla(210,100%,93%,1) 0px, transparent 50%),
+    radial-gradient(at 80% 0%, hsla(189,100%,96%,1) 0px, transparent 50%),
+    radial-gradient(at 0% 50%, hsla(355,100%,93%,1) 0px, transparent 50%),
+    radial-gradient(at 80% 50%, hsla(340,100%,96%,1) 0px, transparent 50%),
+    radial-gradient(at 0% 100%, hsla(22,100%,92%,1) 0px, transparent 50%),
+    radial-gradient(at 80% 100%, hsla(242,100%,96%,1) 0px, transparent 50%),
+    radial-gradient(at 0% 0%, hsla(343,100%,96%,1) 0px, transparent 50%);
+  background-size: 200% 200%;
+  animation: mesh-movement 20s ease-in-out infinite alternate;
+  border-radius: 24px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.04);
+}
+
+@keyframes mesh-movement {
+  0% { background-position: 0% 0%; }
+  100% { background-position: 100% 100%; }
+}
+
+@keyframes slideUpFade {
+  from { opacity: 0; transform: translateY(30px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
 .assistant-layout {
   display: flex;
-  gap: 20px;
-  height: calc(100vh - 100px);
+  gap: 24px;
+  height: 100%;
+}
+
+.glass-card {
+  background: rgba(255, 255, 255, 0.65);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  border-radius: 24px;
+  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.05), inset 0 0 0 1px rgba(255,255,255,0.5);
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow: hidden;
+  position: relative;
+  animation: slideUpFade 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.glass-card::before {
+  content: '';
+  position: absolute;
+  top: -50%; left: -50%; width: 200%; height: 200%;
+  background: conic-gradient(transparent, transparent, transparent, rgba(79, 70, 229, 0.1), transparent);
+  animation: rotate-glow 8s linear infinite;
+  pointer-events: none;
+  z-index: -1;
+}
+
+@keyframes rotate-glow {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 }
 
 .assistant-card.history {
-  width: 280px;
+  width: 320px;
   display: flex;
   flex-direction: column;
 }
@@ -291,46 +347,49 @@ onMounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  padding: 20px 24px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.5);
 }
-
-:deep(.assistant-card.history .el-card__body) {
-  padding: 10px;
-  overflow-y: auto;
-  flex: 1;
+.history-header span {
+  font-size: 18px;
+  font-weight: 800;
+  color: #0f172a;
 }
 
 .assistant-history {
   list-style: none;
-  padding: 0;
+  padding: 16px;
   margin: 0;
+  overflow-y: auto;
+  flex: 1;
 }
 
 .assistant-history li {
-  padding: 12px 16px;
-  border-radius: 8px;
+  padding: 14px 16px;
+  border-radius: 12px;
   cursor: pointer;
-  transition: all 0.3s;
-  color: var(--el-text-color-regular);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  color: #475569;
   margin-bottom: 8px;
-  background: transparent;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
+  background: rgba(255, 255, 255, 0.4);
+  border: 1px solid transparent;
 }
 
 .assistant-history li:hover {
-  background: var(--el-fill-color-light);
+  background: rgba(255, 255, 255, 0.8);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+  transform: translateY(-1px);
 }
 
 .assistant-history li.active {
-  background: var(--el-color-primary-light-9);
-  color: var(--el-color-primary);
-  font-weight: 500;
-}
-
-.session-icon {
-  width: 20px;
-  height: 20px;
+  background: #ffffff;
+  color: #4f46e5;
+  font-weight: 600;
+  border-color: rgba(79, 70, 229, 0.3);
+  box-shadow: 0 4px 16px rgba(79, 70, 229, 0.1);
 }
 
 .session-title {
@@ -338,6 +397,7 @@ onMounted(() => {
   overflow: hidden;
   text-overflow: ellipsis;
   flex: 1;
+  font-size: 15px;
 }
 
 /* 聊天面板 */
@@ -345,14 +405,7 @@ onMounted(() => {
   flex: 1;
   display: flex;
   flex-direction: column;
-}
-
-:deep(.assistant-card.chat .el-card__body) {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  padding: 0; /* Remove padding to handle areas separately */
-  overflow: hidden;
+  animation-delay: 0.1s;
 }
 
 .assistant-messages {
@@ -360,13 +413,13 @@ onMounted(() => {
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  padding: 20px;
+  gap: 24px;
+  padding: 24px;
 }
 
 .message-row {
   display: flex;
-  gap: 12px;
+  gap: 16px;
   align-items: flex-start;
 }
 
@@ -377,93 +430,160 @@ onMounted(() => {
 .message-avatar {
   flex-shrink: 0;
   border: 2px solid white;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-  background-color: var(--el-bg-color);
-  width: 40px;
-  height: 40px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+  width: 44px;
+  height: 44px;
 }
 
-
-
 .assistant-message {
-  max-width: 80%;
-  padding: 16px 20px;
-  border-radius: 16px;
-  line-height: 1.6;
-  font-size: 14px;
+  max-width: 75%;
+  padding: 16px 24px;
+  border-radius: 20px;
+  line-height: 1.7;
+  font-size: 15px;
   word-break: break-word;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.04);
 }
 
 /* Markdown Styles */
 .markdown-body :deep(h1), .markdown-body :deep(h2), .markdown-body :deep(h3), .markdown-body :deep(h4) {
   margin-top: 10px;
   margin-bottom: 10px;
-  font-weight: 600;
+  font-weight: 700;
+  color: #0f172a;
 }
 .markdown-body :deep(p) {
-  margin-bottom: 8px;
+  margin-bottom: 10px;
 }
 .markdown-body :deep(p:last-child) {
   margin-bottom: 0;
 }
 .markdown-body :deep(ul), .markdown-body :deep(ol) {
   padding-left: 20px;
-  margin-bottom: 8px;
+  margin-bottom: 10px;
 }
 .markdown-body :deep(table) {
   width: 100%;
   border-collapse: collapse;
-  margin-bottom: 10px;
+  margin-bottom: 12px;
 }
 .markdown-body :deep(th), .markdown-body :deep(td) {
-  border: 1px solid var(--el-border-color-lighter);
-  padding: 8px;
+  border: 1px solid #e2e8f0;
+  padding: 10px;
 }
 .markdown-body :deep(th) {
-  background-color: rgba(0,0,0,0.02);
+  background-color: #f8fafc;
 }
 .markdown-body :deep(blockquote) {
-  margin: 0 0 10px 0;
-  padding: 10px 15px;
-  border-left: 4px solid var(--el-color-primary);
-  background-color: rgba(64, 158, 255, 0.1);
-  color: var(--el-text-color-regular);
+  margin: 0 0 12px 0;
+  padding: 12px 16px;
+  border-left: 4px solid #4f46e5;
+  background-color: rgba(79, 70, 229, 0.05);
+  color: #475569;
+  border-radius: 0 8px 8px 0;
 }
 .markdown-body :deep(code) {
-  background-color: rgba(0,0,0,0.04);
-  padding: 2px 4px;
-  border-radius: 4px;
+  background-color: rgba(15, 23, 42, 0.05);
+  padding: 3px 6px;
+  border-radius: 6px;
   font-family: monospace;
+  color: #db2777;
 }
 
 .message-row.assistant .assistant-message, .message-row.system .assistant-message {
-  background: #ffffff;
-  color: var(--el-text-color-primary);
-  border-radius: 4px 16px 16px 16px;
-  border: 1px solid var(--el-border-color-lighter);
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(12px);
+  color: #334155;
+  border-radius: 4px 20px 20px 20px;
+  border: 1px solid rgba(255, 255, 255, 0.8);
 }
 
 .message-row.user .assistant-message {
-  background: var(--el-color-primary);
+  background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
   color: white;
-  border-radius: 16px 4px 16px 16px;
-  box-shadow: 0 2px 8px rgba(64, 158, 255, 0.25);
+  border-radius: 20px 4px 20px 20px;
+  box-shadow: 0 8px 24px rgba(99, 102, 241, 0.25);
   white-space: pre-wrap;
 }
 
 /* 底部输入框 */
 .assistant-input-area {
-  padding: 16px 20px;
-  background: var(--el-bg-color);
-  border-top: 1px solid var(--el-border-color-lighter);
+  padding: 20px 24px;
+  background: rgba(255, 255, 255, 0.5);
+  border-top: 1px solid rgba(255, 255, 255, 0.6);
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 16px;
+}
+
+:deep(.assistant-input-area .el-textarea__inner) {
+  border-radius: 16px;
+  background-color: rgba(248, 250, 252, 0.8);
+  box-shadow: 0 0 0 1px #cbd5e1 inset;
+  padding: 16px;
+  font-size: 15px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  resize: none;
+}
+
+:deep(.assistant-input-area .el-textarea__inner:hover) {
+  background-color: #ffffff;
+  box-shadow: 0 0 0 1px #94a3b8 inset, 0 4px 12px rgba(0,0,0,0.02);
+}
+
+:deep(.assistant-input-area .el-textarea__inner:focus) {
+  background-color: #ffffff;
+  box-shadow: 0 0 0 2px #6366f1 inset, 0 8px 24px rgba(99, 102, 241, 0.15) !important;
 }
 
 .assistant-input-actions {
   display: flex;
   justify-content: flex-end;
+}
+
+.gradient-btn {
+  background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+  border: none;
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.gradient-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(99, 102, 241, 0.4);
+}
+
+.assistant-input-actions .el-button {
+  padding: 0 32px;
+  height: 44px;
+  border-radius: 22px;
+  font-weight: 600;
+  font-size: 15px;
+  letter-spacing: 1px;
+  background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+  border: none;
+  box-shadow: 0 8px 20px rgba(99, 102, 241, 0.3);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+  color: white;
+}
+
+.assistant-input-actions .el-button::before {
+  content: '';
+  position: absolute;
+  top: 0; left: -100%; width: 50%; height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+  transform: skewX(-20deg);
+  transition: all 0.5s;
+}
+
+.assistant-input-actions .el-button:not(.is-disabled):hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 28px rgba(99, 102, 241, 0.4);
+}
+
+.assistant-input-actions .el-button:not(.is-disabled):hover::before {
+  left: 150%;
 }
 </style>
