@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { ElMessage } from 'element-plus'
-import { ArrowLeft } from '@element-plus/icons-vue'
+import { ArrowLeft, DataLine, Search } from '@element-plus/icons-vue'
 import { API_BASE_URL } from '../../composables/useAuth'
 
 // Types
@@ -226,22 +226,30 @@ onMounted(() => {
     <!-- Level 1: Course List -->
     <el-card class="glass-card module-table-card" shadow="never" v-if="viewMode === 'courses'">
       <div class="module-toolbar">
-        <div class="header-title">课程列表</div>
-        <el-input v-model="courseKeyword" placeholder="搜索课程编号/地点/班级" clearable class="module-search" />
+        <div class="section-title-wrap">
+          <div class="title-icon-box">
+            <el-icon><DataLine /></el-icon>
+          </div>
+          <h2 class="section-title">课程列表</h2>
+        </div>
+        <el-input v-model="courseKeyword" placeholder="搜索课程编号/地点/班级" clearable class="module-search search-input" :prefix-icon="Search" />
       </div>
       <div class="module-table-wrap">
         <el-table :data="pagedCourses" border v-loading="loading" class="custom-table" header-cell-class-name="custom-table-header">
-          <el-table-column prop="course_code" label="课程编号" min-width="160" />
-          <el-table-column prop="class_display" label="参与班级/专业" min-width="200" />
-          <el-table-column prop="classroom" label="地点" min-width="140" />
-          <el-table-column prop="status_label" label="状态" width="100" />
+          <template #empty>
+            <el-empty description="暂无课程数据" />
+          </template>
+          <el-table-column prop="course_code" label="课程编号" min-width="160" align="center" />
+          <el-table-column prop="class_display" label="参与班级/专业" min-width="200" align="center" />
+          <el-table-column prop="classroom" label="地点" min-width="140" align="center" />
+          <el-table-column prop="status_label" label="状态" width="100" align="center" />
           <el-table-column label="选课人数" width="100" align="center">
             <template #default="{ row }">{{ row.student_count }} 人</template>
           </el-table-column>
-          <el-table-column label="开课时间" min-width="160">
+          <el-table-column label="开课时间" min-width="160" align="center">
             <template #default="{ row }">{{ formatTime(row.start_time) }}</template>
           </el-table-column>
-          <el-table-column label="操作" width="140" fixed="right">
+          <el-table-column label="操作" width="140" align="center" fixed="right">
             <template #default="{ row }">
               <el-button link type="primary" @click="openCourseGrades(row)">查看/录入成绩</el-button>
             </template>
@@ -261,16 +269,16 @@ onMounted(() => {
     <!-- Level 2: Course Grades -->
     <el-card class="glass-card module-table-card" shadow="never" v-else-if="viewMode === 'course_grades'">
       <div class="module-toolbar">
-        <div class="header-back" @click="backToCourses">
+        <div class="header-back capsule-back" @click="backToCourses">
           <el-icon><ArrowLeft /></el-icon>
-          返回课程列表
+          <span>返回课程列表</span>
         </div>
         <div class="header-title">
           《{{ activeCourse?.course_code }}》成绩单 
-          <el-tag size="small" type="info">{{ activeCourse?.class_display }}</el-tag>
+          <el-tag size="small" type="primary" effect="light" style="margin-left: 8px;">{{ activeCourse?.class_display }}</el-tag>
         </div>
         <div style="flex: 1"></div>
-        <el-input v-model="gradeKeyword" placeholder="搜索学号/姓名" clearable class="module-search" />
+        <el-input v-model="gradeKeyword" placeholder="搜索学号/姓名" clearable class="module-search search-input" :prefix-icon="Search" />
       </div>
       
       <el-alert 
@@ -283,8 +291,11 @@ onMounted(() => {
 
       <div class="module-table-wrap">
         <el-table :data="pagedGrades" border v-loading="loading" class="custom-table" header-cell-class-name="custom-table-header">
-          <el-table-column prop="identity_code" label="学号" min-width="140" />
-          <el-table-column label="姓名" min-width="140">
+          <template #empty>
+            <el-empty description="暂无成绩数据" />
+          </template>
+          <el-table-column prop="identity_code" label="学号" min-width="140" align="center" />
+          <el-table-column label="姓名" min-width="140" align="center">
             <template #default="{ row }">
               <el-button link type="primary" @click="openStudentHistory(row)">
                 {{ row.username }}
@@ -293,7 +304,7 @@ onMounted(() => {
           </el-table-column>
           <el-table-column label="AI评分 (30%)" width="140" align="center">
             <template #default="{ row }">
-              <el-tag :type="row.ai_score ? 'success' : 'info'" effect="plain">
+              <el-tag :type="row.ai_score !== null ? 'success' : 'info'" effect="light">
                 {{ formatScore(row.ai_score) }}
               </el-tag>
             </template>
@@ -313,7 +324,7 @@ onMounted(() => {
           </el-table-column>
           <el-table-column label="最终评分" width="140" align="center">
             <template #default="{ row }">
-              <strong :style="{ color: row.final_score ? 'var(--el-color-primary)' : 'var(--el-text-color-placeholder)' }">
+              <strong :style="{ color: row.final_score !== null ? 'var(--el-color-primary)' : 'var(--el-text-color-placeholder)' }">
                 {{ formatScore(row.final_score) }}
               </strong>
             </template>
@@ -333,9 +344,9 @@ onMounted(() => {
     <!-- Level 3: Student History -->
     <el-card class="glass-card module-table-card" shadow="never" v-else-if="viewMode === 'student_grades'">
       <div class="module-toolbar">
-        <div class="header-back" @click="backToCourseGrades">
+        <div class="header-back capsule-back" @click="backToCourseGrades">
           <el-icon><ArrowLeft /></el-icon>
-          返回成绩单
+          <span>返回成绩单</span>
         </div>
         <div class="header-title">
           {{ activeStudent?.name }} ({{ activeStudent?.code }}) 的历史成绩
@@ -344,10 +355,17 @@ onMounted(() => {
       
       <div class="module-table-wrap">
         <el-table :data="studentHistory" border v-loading="loading" class="custom-table" header-cell-class-name="custom-table-header">
-          <el-table-column prop="course_code" label="课程编号" min-width="160" />
-          <el-table-column prop="classroom" label="授课地点" min-width="140" />
+          <template #empty>
+            <el-empty description="该学生暂无历史成绩" />
+          </template>
+          <el-table-column prop="course_code" label="课程编号" min-width="160" align="center" />
+          <el-table-column prop="classroom" label="授课地点" min-width="140" align="center" />
           <el-table-column label="AI评分" width="120" align="center">
-            <template #default="{ row }">{{ formatScore(row.ai_score) }}</template>
+            <template #default="{ row }">
+              <el-tag :type="row.ai_score !== null ? 'success' : 'info'" effect="light">
+                {{ formatScore(row.ai_score) }}
+              </el-tag>
+            </template>
           </el-table-column>
           <el-table-column label="教师评分" width="120" align="center">
             <template #default="{ row }">{{ formatScore(row.teacher_score) }}</template>
@@ -357,7 +375,7 @@ onMounted(() => {
               <strong style="color: var(--el-color-primary)">{{ formatScore(row.final_score) }}</strong>
             </template>
           </el-table-column>
-          <el-table-column label="最后更新时间" min-width="160">
+          <el-table-column label="最后更新时间" min-width="160" align="center">
             <template #default="{ row }">{{ formatTime(row.graded_at) }}</template>
           </el-table-column>
         </el-table>
@@ -371,10 +389,7 @@ onMounted(() => {
 .grade-management-page {
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  padding: 16px;
-  background: linear-gradient(135deg, #f0f4f8 0%, #e2eafc 100%);
-  height: calc(100vh - 64px);
+  height: calc(100vh - 80px);
   box-sizing: border-box;
   overflow: hidden;
 }
@@ -454,20 +469,61 @@ onMounted(() => {
   gap: 12px;
 }
 
-.header-back {
-  display: flex;
+.capsule-back {
+  display: inline-flex;
   align-items: center;
-  gap: 4px;
-  cursor: pointer;
-  color: var(--el-color-primary);
+  gap: 6px;
+  padding: 6px 16px;
+  background: #f4f4f5;
+  color: #606266;
+  border-radius: 20px;
   font-size: 14px;
   font-weight: 500;
-  margin-right: 20px;
-  transition: opacity 0.3s;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  margin-right: 16px;
+}
+.capsule-back:hover {
+  background: #409eff;
+  color: white;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(64, 158, 255, 0.3);
 }
 
-.header-back:hover {
-  opacity: 0.8;
+.section-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+.title-icon-box {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #e6f0ff 0%, #ecf5ff 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #409eff;
+  font-size: 18px;
+}
+.section-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #303133;
+  margin: 0;
+  position: relative;
+  white-space: nowrap;
+}
+.section-title::after {
+  content: '';
+  position: absolute;
+  bottom: -4px;
+  left: 0;
+  width: 24px;
+  height: 3px;
+  background: linear-gradient(90deg, #409eff 0%, transparent 100%);
+  border-radius: 2px;
 }
 
 :deep(.el-input-number .el-input__inner) {
