@@ -218,7 +218,7 @@ onMounted(() => {
 <style scoped>
 .module-page {
   min-height: calc(100vh - 92px);
-  padding: 32px;
+  padding: 20px;
   background-color: #f8fafc;
   background-image: 
     radial-gradient(at 40% 20%, hsla(210,100%,93%,1) 0px, transparent 50%),
@@ -242,11 +242,11 @@ onMounted(() => {
 }
 
 .profile-layout {
-  max-width: 1080px;
+  max-width: 980px;
   margin: 0 auto;
   display: grid;
-  grid-template-columns: 360px 1fr;
-  gap: 32px;
+  grid-template-columns: 320px 1fr;
+  gap: 20px;
 }
 
 .glass-card {
@@ -424,17 +424,17 @@ onMounted(() => {
 
 /* 右侧样式 */
 .profile-main {
-  padding: 40px 48px;
+  padding: 28px 32px;
 }
 
 .form-header {
-  margin-bottom: 36px;
+  margin-bottom: 24px;
   position: relative;
 }
 
 .form-header h2 {
   margin: 0 0 10px;
-  font-size: 28px;
+  font-size: 24px;
   font-weight: 800;
   letter-spacing: -0.5px;
   background: linear-gradient(135deg, #0f172a 0%, #4f46e5 100%);
@@ -446,7 +446,7 @@ onMounted(() => {
 .form-header p {
   margin: 0;
   color: #64748b;
-  font-size: 15px;
+  font-size: 14px;
 }
 
 /* 进场动画 */
@@ -462,7 +462,7 @@ onMounted(() => {
 }
 
 .profile-main {
-  padding: 40px 48px;
+  padding: 28px 32px;
   animation: slideUpFade 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
   animation-delay: 0.15s;
 }
@@ -485,11 +485,11 @@ onMounted(() => {
 
 /* 覆盖 Element Plus 表单样式 */
 :deep(.custom-form .el-form-item) {
-  margin-bottom: 28px;
+  margin-bottom: 18px;
 }
 
 :deep(.custom-form .el-form-item__label) {
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
   color: #334155;
   padding-bottom: 8px;
@@ -497,10 +497,10 @@ onMounted(() => {
 }
 
 :deep(.custom-form .el-input__wrapper) {
-  border-radius: 12px;
+  border-radius: 10px;
   background-color: rgba(248, 250, 252, 0.6);
   box-shadow: 0 0 0 1px #cbd5e1 inset;
-  padding: 4px 16px;
+  padding: 2px 12px;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
@@ -523,18 +523,18 @@ onMounted(() => {
 }
 
 .actions {
-  margin-top: 48px;
+  margin-top: 28px;
   display: flex;
   justify-content: flex-end;
 }
 
 .save-btn {
-  padding: 0 48px;
-  height: 48px;
-  border-radius: 24px;
+  padding: 0 30px;
+  height: 40px;
+  border-radius: 20px;
   font-weight: 600;
-  font-size: 16px;
-  letter-spacing: 1px;
+  font-size: 14px;
+  letter-spacing: 0.5px;
   background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
   border: none;
   box-shadow: 0 8px 20px rgba(99, 102, 241, 0.3);
@@ -566,7 +566,7 @@ onMounted(() => {
     grid-template-columns: 1fr;
   }
   .profile-main {
-    padding: 32px;
+    padding: 22px;
   }
 }
 </style>

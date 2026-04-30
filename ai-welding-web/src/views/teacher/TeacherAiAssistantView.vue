@@ -274,7 +274,7 @@ onMounted(() => {
 
 <style scoped>
 .module-page {
-  padding: 24px;
+  padding: 16px;
   height: calc(100vh - 92px);
   box-sizing: border-box;
   overflow: hidden;
@@ -305,7 +305,7 @@ onMounted(() => {
 
 .assistant-layout {
   display: flex;
-  gap: 24px;
+  gap: 16px;
   height: 100%;
 }
 
@@ -338,7 +338,7 @@ onMounted(() => {
 }
 
 .assistant-card.history {
-  width: 320px;
+  width: 280px;
   display: flex;
   flex-direction: column;
 }
@@ -347,25 +347,25 @@ onMounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 20px 24px;
+  padding: 14px 16px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.5);
 }
 .history-header span {
-  font-size: 18px;
+  font-size: 15px;
   font-weight: 800;
   color: #0f172a;
 }
 
 .assistant-history {
   list-style: none;
-  padding: 16px;
+  padding: 10px;
   margin: 0;
   overflow-y: auto;
   flex: 1;
 }
 
 .assistant-history li {
-  padding: 14px 16px;
+  padding: 10px 12px;
   border-radius: 12px;
   cursor: pointer;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -373,7 +373,7 @@ onMounted(() => {
   margin-bottom: 8px;
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
   background: rgba(255, 255, 255, 0.4);
   border: 1px solid transparent;
 }
@@ -397,7 +397,7 @@ onMounted(() => {
   overflow: hidden;
   text-overflow: ellipsis;
   flex: 1;
-  font-size: 15px;
+  font-size: 13px;
 }
 
 /* 聊天面板 */
@@ -413,13 +413,13 @@ onMounted(() => {
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 24px;
-  padding: 24px;
+  gap: 14px;
+  padding: 14px;
 }
 
 .message-row {
   display: flex;
-  gap: 16px;
+  gap: 10px;
   align-items: flex-start;
 }
 
@@ -431,16 +431,16 @@ onMounted(() => {
   flex-shrink: 0;
   border: 2px solid white;
   box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-  width: 44px;
-  height: 44px;
+  width: 36px;
+  height: 36px;
 }
 
 .assistant-message {
   max-width: 75%;
-  padding: 16px 24px;
-  border-radius: 20px;
-  line-height: 1.7;
-  font-size: 15px;
+  padding: 12px 16px;
+  border-radius: 14px;
+  line-height: 1.55;
+  font-size: 14px;
   word-break: break-word;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.04);
 }
@@ -508,20 +508,21 @@ onMounted(() => {
 
 /* 底部输入框 */
 .assistant-input-area {
-  padding: 20px 24px;
+  padding: 12px 14px;
   background: rgba(255, 255, 255, 0.5);
   border-top: 1px solid rgba(255, 255, 255, 0.6);
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 10px;
 }
 
 :deep(.assistant-input-area .el-textarea__inner) {
-  border-radius: 16px;
+  border-radius: 12px;
   background-color: rgba(248, 250, 252, 0.8);
   box-shadow: 0 0 0 1px #cbd5e1 inset;
-  padding: 16px;
-  font-size: 15px;
+  padding: 10px 12px;
+  font-size: 14px;
+  min-height: 84px;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   resize: none;
 }
@@ -554,12 +555,12 @@ onMounted(() => {
 }
 
 .assistant-input-actions .el-button {
-  padding: 0 32px;
-  height: 44px;
-  border-radius: 22px;
+  padding: 0 20px;
+  height: 36px;
+  border-radius: 18px;
   font-weight: 600;
-  font-size: 15px;
-  letter-spacing: 1px;
+  font-size: 13px;
+  letter-spacing: 0.5px;
   background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
   border: none;
   box-shadow: 0 8px 20px rgba(99, 102, 241, 0.3);
