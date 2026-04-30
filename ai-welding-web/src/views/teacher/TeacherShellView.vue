@@ -13,7 +13,7 @@ import {
   UserFilled,
 } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
-import { currentUser, useAuth } from '../../composables/useAuth'
+import { API_BASE_URL, currentUser, useAuth } from '../../composables/useAuth'
 import logo from '../../assets/logo.png'
 
 const route = useRoute()
@@ -31,6 +31,15 @@ const menus = [
 ]
 
 const activeMenu = computed(() => route.path)
+const userAvatarSrc = computed(() => {
+  const raw = currentUser.value?.avatar || ''
+  if (raw) {
+    if (/^https?:\/\//i.test(raw)) return raw
+    return `${API_BASE_URL}${raw}`
+  }
+  const seed = currentUser.value?.identity_code || currentUser.value?.username || 'teacher'
+  return `https://i.pravatar.cc/96?u=${encodeURIComponent(seed)}`
+})
 
 async function handleMenuSelect(index: string) {
   await router.push(index)
@@ -75,7 +84,7 @@ async function handleCommand(command: string) {
         <h2 class="teacher-top-center-title">AI焊接教学数字化管理平台</h2>
 
         <div class="teacher-userbar">
-          <el-avatar :icon="UserFilled" :size="36" />
+          <el-avatar :src="userAvatarSrc" :size="36" />
           <div class="teacher-usermeta">
             <strong>{{ currentUser?.username }}</strong>
             <span>{{ currentUser?.identity_code }}</span>

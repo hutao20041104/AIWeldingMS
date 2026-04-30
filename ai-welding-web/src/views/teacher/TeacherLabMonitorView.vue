@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, nextTick } from 'vue'
+import { computed, onMounted, onUnmounted, ref, nextTick, watch } from 'vue'
 import { UserFilled, ZoomIn, ZoomOut } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { API_BASE_URL, currentUser } from '../../composables/useAuth'
@@ -8,7 +8,7 @@ import type * as echarts from 'echarts'
 import dashboardBg from '../../assets/dashboard.png'
 
 type MonitorStudent = {
-  student_id: string; identity_code: string; username: string; major: string; class_name: string
+  student_id: string; identity_code: string; username: string; avatar?: string | null; major: string; class_name: string
 }
 type MonitorDevice = {
   id: number; device_code: string; status: string; status_label: string; seat_usage: string; students: MonitorStudent[]
@@ -20,11 +20,11 @@ const isFullscreen = ref(false)
 const hasActiveCourse = ref(false)
 const course = ref<{
   id: number; course_code: string; classroom: string; start_time: string; end_time: string;
-  assistant_student_name?: string | null; student_count: number
+  assistant_student_name?: string | null; assistant_student_avatar?: string | null; student_count: number
 } | null>(null)
 const devices = ref<MonitorDevice[]>([])
 const selectedDeviceId = ref<number | null>(null)
-const nowText = ref('')
+const telemetryStartAt = ref<string | null>(null)
 const nowTime = ref('')
 const nowDate = ref('')
 const nowWeekday = ref('')
@@ -32,14 +32,15 @@ const nowWeekday = ref('')
 let timer: number | null = null
 let clockTimer: number | null = null
 
-const { initChart, startTrendTimer, resizeAll, dispose } = useCharts()
+const { initChart, setSeriesData, resizeAll, dispose } = useCharts()
 
 const chartRefs = ref<Record<string, HTMLElement | null>>({
-  weldVoltage: null, arcVoltage: null, wireSpeed: null, gasFlow: null,
+  weldVoltage: null, arcVoltage: null, wireSpeed: null,
 })
 const chartInstMap: Record<string, echarts.ECharts | null> = {
-  weldVoltage: null, arcVoltage: null, wireSpeed: null, gasFlow: null,
+  weldVoltage: null, arcVoltage: null, wireSpeed: null,
 }
+let telemetryTimer: number | null = null
 
 function authHeaders() {
   const token = localStorage.getItem('access_token')
@@ -48,8 +49,9 @@ function authHeaders() {
   return h
 }
 
-const activeDeviceCount = computed(() => devices.value.filter(d => d.students.length > 0).length)
 const teacherName = computed(() => currentUser.value?.username || '教师')
+const teacherAvatarUrl = computed(() => buildAvatarUrl(currentUser.value?.avatar || null, teacherName.value))
+const assistantAvatarUrl = computed(() => buildAvatarUrl(course.value?.assistant_student_avatar || null, course.value?.assistant_student_name || '助教'))
 const totalStudents = computed(() => devices.value.reduce((s, d) => s + d.students.length, 0))
 const ngCount = computed(() => Math.max(0, Math.round(totalStudents.value * 0.06)))
 const goodCount = computed(() => Math.max(0, totalStudents.value - ngCount.value))
@@ -57,7 +59,6 @@ const aiScore = computed(() => {
   if (!course.value?.student_count) return 0
   return Math.round((goodCount.value / course.value.student_count) * 100)
 })
-const selectedDevice = computed(() => devices.value.find(d => d.id === selectedDeviceId.value) || null)
 const displayedStudents = computed(() => {
   if (selectedDeviceId.value) {
     const d = devices.value.find(dev => dev.id === selectedDeviceId.value)
@@ -67,9 +68,10 @@ const displayedStudents = computed(() => {
 })
 
 const runHours = computed(() => {
-  if (!course.value?.start_time) return 0
-  const diff = Date.now() - new Date(course.value.start_time).getTime()
-  return Math.max(0, Math.round(diff / 3600000))
+  if (!telemetryStartAt.value) return 0
+  const diff = Date.now() - new Date(telemetryStartAt.value).getTime()
+  const hours = diff / 3600000
+  return Math.max(0, Number(hours.toFixed(2)))
 })
 const powerUsage = computed(() => (runHours.value * 1.2).toFixed(0))
 
@@ -80,6 +82,14 @@ function tickNow() {
   nowTime.value = `${pad(d.getHours())}:${pad(d.getMinutes())}`
   nowDate.value = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`
   nowWeekday.value = weeks[d.getDay()]
+}
+
+function buildAvatarUrl(avatar: string | null | undefined, seed: string) {
+  if (avatar && avatar.trim()) {
+    if (/^https?:\/\//i.test(avatar)) return avatar
+    return `${API_BASE_URL}${avatar}`
+  }
+  return `https://i.pravatar.cc/120?u=${encodeURIComponent(seed || 'user')}`
 }
 
 async function fetchMonitor() {
@@ -95,6 +105,33 @@ async function fetchMonitor() {
     if (selectedDeviceId.value && !devices.value.some(d => d.id === selectedDeviceId.value))
       selectedDeviceId.value = devices.value[0]?.id || null
   } catch { ElMessage.error('网络异常') } finally { loading.value = false }
+}
+
+async function fetchTelemetry() {
+  if (!course.value?.id || !selectedDeviceId.value) return
+  try {
+    const params = new URLSearchParams({
+      device_id: String(selectedDeviceId.value),
+      limit: '60',
+    })
+    const res = await fetch(`${API_BASE_URL}/api/courses/${course.value.id}/telemetry/?${params.toString()}`, {
+      headers: { ...authHeaders() },
+    })
+    const data = await res.json()
+    if (!res.ok) return
+    const points = data?.series?.[0]?.points || []
+    telemetryStartAt.value = points.length > 0 ? points[0].recorded_at : null
+    const voltageData = points.map((p: any) => Number(p.voltage))
+    const currentData = points.map((p: any) => Number(p.current))
+    const wireData = points.map((p: any) => Number(p.wire_feed_speed))
+    setSeriesData(chartInstMap as any, {
+      weldVoltage: voltageData,
+      arcVoltage: currentData,
+      wireSpeed: wireData,
+    })
+  } catch {
+    // 监控页轮询失败时静默，避免频繁打断
+  }
 }
 
 async function toggleFullscreen() {
@@ -121,16 +158,29 @@ onMounted(async () => {
     const el = chartRefs.value[key]
     if (el) chartInstMap[key] = initChart(el, key)
   }
-  startTrendTimer(chartInstMap as any)
+  await fetchTelemetry()
+  telemetryTimer = window.setInterval(fetchTelemetry, 1000)
 })
 
 onUnmounted(() => {
   if (timer) window.clearInterval(timer)
   if (clockTimer) window.clearInterval(clockTimer)
+  if (telemetryTimer) window.clearInterval(telemetryTimer)
   document.removeEventListener('fullscreenchange', onFsChange)
   window.removeEventListener('resize', resizeAll)
   dispose()
 })
+
+watch(selectedDeviceId, () => {
+  fetchTelemetry()
+})
+
+watch(
+  () => course.value?.id,
+  () => {
+    fetchTelemetry()
+  },
+)
 </script>
 
 <template>
@@ -170,10 +220,6 @@ onUnmounted(() => {
                   <div class="ds-run-val"><b>{{ powerUsage }}</b>kW·h</div>
                 </div>
               </div>
-              <div class="ds-station">
-                <span class="ds-station-label">工位</span>
-                <span class="ds-station-val">{{ String(activeDeviceCount).padStart(2,'0') }}</span>
-              </div>
             </div>
 
             <div class="ds-panel">
@@ -184,7 +230,7 @@ onUnmounted(() => {
                     学号：{{ s.identity_code }}<br>专业：{{ s.major || '无' }}<br>班级：{{ s.class_name || '无' }}
                   </template>
                   <div class="ds-stu-chip">
-                    <el-avatar :size="32" :icon="UserFilled" class="ds-stu-avatar" />
+                    <el-avatar :size="42" :src="buildAvatarUrl(s.avatar || null, s.username)" class="ds-stu-avatar" />
                     <span class="ds-stu-name">{{ s.username }}</span>
                   </div>
                 </el-tooltip>
@@ -206,12 +252,12 @@ onUnmounted(() => {
 
             <div class="ds-people">
               <div class="ds-person">
-                <el-avatar :size="64" :icon="UserFilled" class="ds-person-avatar" />
+                <el-avatar :size="64" :src="teacherAvatarUrl" class="ds-person-avatar" />
                 <div class="ds-person-name">{{ teacherName }}</div>
                 <div class="ds-person-role">教师</div>
               </div>
               <div class="ds-person">
-                <el-avatar :size="64" :icon="UserFilled" class="ds-person-avatar" />
+                <el-avatar :size="64" :src="assistantAvatarUrl" class="ds-person-avatar" />
                 <div class="ds-person-name">{{ course?.assistant_student_name || '未指定' }}</div>
                 <div class="ds-person-role">助教</div>
               </div>
@@ -233,10 +279,6 @@ onUnmounted(() => {
                 <svg viewBox="0 0 120 120"><circle cx="60" cy="60" r="52" class="gauge-bg"/><circle cx="60" cy="60" r="52" class="gauge-ring ai-ring"/></svg>
                 <div class="gauge-inner"><div class="gauge-num">{{ aiScore }}</div><div class="gauge-label">AI评分</div></div>
               </div>
-            </div>
-
-            <div class="ds-export-row">
-              <button class="ds-btn-export">导出成绩</button>
             </div>
 
             <div class="ds-section-label"><span class="dot orange"></span>焊接器材</div>
@@ -287,7 +329,7 @@ onUnmounted(() => {
 .screen-mask {
   height: 100%;
   padding: 12px 18px;
-  background: linear-gradient(180deg, rgba(2,10,21,0.85), rgba(2,15,30,0.95));
+  background: linear-gradient(180deg, rgba(5, 24, 46, 0.64), rgba(7, 30, 56, 0.78));
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -312,8 +354,8 @@ onUnmounted(() => {
 /* TECH PANELS */
 .ds-panel, .ds-chart-card {
   position: relative;
-  background: rgba(0, 20, 40, 0.45);
-  border: 1px solid rgba(0, 229, 255, 0.15);
+  background: rgba(8, 44, 76, 0.42);
+  border: 1px solid rgba(78, 210, 246, 0.28);
   border-radius: 4px; /* Harder corners for tech look */
   padding: 12px;
   box-shadow: inset 0 0 20px rgba(0, 229, 255, 0.05);
@@ -341,16 +383,13 @@ onUnmounted(() => {
 .ds-run-label { font-size: 11px; color: rgba(255,255,255,0.5); text-transform: uppercase; }
 .ds-run-val { font-size: 14px; color: #00e5ff; margin-top: 4px; font-family: 'Courier New', monospace; }
 .ds-run-val b { font-size: 26px; font-weight: 800; margin-right: 2px; text-shadow: 0 0 10px rgba(0,229,255,0.5); }
-.ds-station { display: flex; align-items: center; justify-content: space-between; padding-top: 8px; border-top: 1px dashed rgba(0,229,255,0.2); }
-.ds-station-label { font-size: 12px; color: rgba(255,255,255,0.5); }
-.ds-station-val { font-size: 32px; font-weight: 800; color: #fff; font-family: 'Courier New', monospace; text-shadow: 0 0 15px rgba(255,255,255,0.4); }
 
 .ds-student-chips { display: flex; flex-wrap: wrap; gap: 8px; }
-.ds-stu-chip { display: flex; align-items: center; gap: 8px; padding: 4px 14px 4px 4px; background: linear-gradient(90deg, rgba(0,229,255,0.1), rgba(0,229,255,0.02)); border: 1px solid rgba(0,229,255,0.2); border-radius: 4px; cursor: pointer; transition: all 0.3s; position: relative; overflow: hidden; }
-.ds-stu-chip::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 2px; background: #00e5ff; }
-.ds-stu-chip:hover { border-color: #00e5ff; box-shadow: 0 0 15px rgba(0,229,255,0.3); transform: translateX(2px); }
-.ds-stu-avatar { flex-shrink: 0; border: 1px solid rgba(0,229,255,0.5); border-radius: 2px; }
-.ds-stu-name { font-size: 13px; color: #fff; font-weight: 600; white-space: nowrap; }
+.ds-stu-chip { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; width: 86px; min-height: 94px; padding: 8px 6px; background: linear-gradient(180deg, rgba(0,229,255,0.12), rgba(0,229,255,0.02)); border: 1px solid rgba(0,229,255,0.22); border-radius: 6px; cursor: pointer; transition: all 0.3s; position: relative; overflow: hidden; }
+.ds-stu-chip::before { content: ''; position: absolute; left: 0; right: 0; top: 0; height: 2px; background: #00e5ff; }
+.ds-stu-chip:hover { border-color: #00e5ff; box-shadow: 0 0 15px rgba(0,229,255,0.3); transform: translateY(-2px); }
+.ds-stu-avatar { flex-shrink: 0; border: 1px solid rgba(0,229,255,0.55); }
+.ds-stu-name { font-size: 12px; color: #fff; font-weight: 600; max-width: 100%; text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ds-stu-more { background: rgba(0,229,255,0.15); color: #00e5ff; padding: 6px 14px; font-size: 13px; font-weight: 800; border-radius: 4px; }
 
 .ds-today-card { background: linear-gradient(135deg, rgba(0,229,255,0.08), rgba(0,100,200,0.02)); border: 1px solid rgba(0,229,255,0.1); border-radius: 4px; padding: 12px; position: relative; }
@@ -385,15 +424,12 @@ onUnmounted(() => {
 .ai .gauge-num { text-shadow: 0 0 15px rgba(57,255,20,0.6); }
 .gauge-label { font-size: 12px; color: rgba(255,255,255,0.6); margin-top: 6px; letter-spacing: 1px; font-weight: 600; }
 
-.ds-export-row { text-align: center; margin: 10px 0; }
-.ds-btn-export { background: linear-gradient(90deg, #0088a8, #00e5ff); color: #020a15; font-weight: 800; font-size: 15px; letter-spacing: 4px; padding: 10px 36px; border: none; cursor: pointer; clip-path: polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px); box-shadow: 0 0 20px rgba(0,229,255,0.3); transition: all 0.3s; text-transform: uppercase; }
-.ds-btn-export:hover { filter: brightness(1.2); box-shadow: 0 0 30px rgba(0,229,255,0.6); transform: scale(1.02); }
-
 .ds-section-label { font-size: 14px; font-weight: 600; color: #d7f6ff; display: flex; align-items: center; gap: 8px; margin: 6px 0; text-shadow: 0 0 8px rgba(0,229,255,0.4); }
 
 .ds-device-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 12px; flex: 1; min-height: 0; overflow-y: auto; align-content: start; padding-right: 4px; }
 .ds-device { background: rgba(0,20,40,0.6); border: 1px solid rgba(0,229,255,0.15); border-radius: 6px; padding: 10px; cursor: pointer; transition: all 0.3s; text-align: center; position: relative; box-shadow: inset 0 0 10px rgba(0,229,255,0.05); }
-.ds-device:hover { border-color: rgba(0,229,255,0.5); background: rgba(0,30,60,0.7); box-shadow: 0 0 15px rgba(0,229,255,0.2), inset 0 0 15px rgba(0,229,255,0.1); transform: translateY(-2px); }
+.ds-device { background: rgba(7, 34, 60, 0.58); border: 1px solid rgba(86, 214, 246, 0.26); border-radius: 6px; padding: 10px; cursor: pointer; transition: all 0.3s; text-align: center; position: relative; box-shadow: inset 0 0 10px rgba(0,229,255,0.06); }
+.ds-device:hover { border-color: rgba(116, 226, 252, 0.72); background: rgba(10, 48, 80, 0.68); box-shadow: 0 0 16px rgba(0,229,255,0.24), inset 0 0 15px rgba(0,229,255,0.12); transform: translateY(-2px); }
 .ds-device.active { border-color: #00e5ff; box-shadow: 0 0 20px rgba(0,229,255,0.4), inset 0 0 20px rgba(0,229,255,0.2); }
 .ds-device.active::after { content: ''; position: absolute; inset: -4px; border: 1px solid #00e5ff; border-radius: 8px; opacity: 0.4; pointer-events: none; }
 
@@ -415,6 +451,25 @@ onUnmounted(() => {
 .ds-chart-box { flex: 1; min-height: 120px; }
 
 .empty-state { flex: 1; display: grid; place-items: center; color: rgba(0,229,255,0.4); font-size: 24px; letter-spacing: 2px; }
+
+/* Hide monitor scrollbars but keep scrolling */
+.screen-mask,
+.ds-left,
+.ds-center,
+.ds-device-grid,
+.ds-right {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.screen-mask::-webkit-scrollbar,
+.ds-left::-webkit-scrollbar,
+.ds-center::-webkit-scrollbar,
+.ds-device-grid::-webkit-scrollbar,
+.ds-right::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
+}
 
 @media(max-width:1300px) {
   .ds-body { grid-template-columns: 240px 1fr 280px; }

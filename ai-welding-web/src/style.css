@@ -363,6 +363,14 @@ body::after {
 
 .teacher-menu-wrap-vertical {
   overflow: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.teacher-menu-wrap-vertical::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
 }
 
 .teacher-menu-vertical {

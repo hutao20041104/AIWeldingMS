@@ -1,25 +1,19 @@
-import { onUnmounted, ref, type Ref } from 'vue'
 import * as echarts from 'echarts'
 
-type TrendKey = 'weldVoltage' | 'arcVoltage' | 'wireSpeed' | 'gasFlow'
+type TrendKey = 'weldVoltage' | 'arcVoltage' | 'wireSpeed'
 
-const CHART_CONFIGS: Record<TrendKey, { name: string; color: string; unit: string; base: number; jitter: number }> = {
-  weldVoltage: { name: '焊接电压', color: '#00e5ff', unit: 'V', base: 24, jitter: 2 },
-  arcVoltage: { name: '电弧电压', color: '#00e5ff', unit: 'V', base: 20, jitter: 1.5 },
-  wireSpeed: { name: '送丝速度', color: '#00e5ff', unit: 'm/min', base: 8.2, jitter: 0.3 },
-  gasFlow: { name: '气体流量', color: '#00e5ff', unit: 'L/min', base: 15, jitter: 1 },
+const CHART_CONFIGS: Record<TrendKey, { name: string; color: string; unit: string }> = {
+  weldVoltage: { name: '焊接电压', color: '#00e5ff', unit: 'V' },
+  arcVoltage: { name: '电弧电压', color: '#00e5ff', unit: 'V' },
+  wireSpeed: { name: '送丝速度', color: '#00e5ff', unit: 'm/min' },
 }
 
-function generateInitialData(base: number, jitter: number, count = 20): number[] {
-  const arr: number[] = []
-  for (let i = 0; i < count; i++) {
-    arr.push(Number((base + (Math.random() - 0.5) * jitter * 2).toFixed(2)))
-  }
-  return arr
+function buildLabels(count: number): string[] {
+  return Array.from({ length: count }, (_, i) => `${i + 1}`)
 }
 
 function buildChartOption(data: number[], cfg: typeof CHART_CONFIGS[TrendKey]): echarts.EChartsOption {
-  const labels = data.map((_, i) => `${i}s`)
+  const labels = buildLabels(data.length)
   return {
     grid: { top: 8, right: 10, bottom: 20, left: 36 },
     xAxis: {
@@ -62,50 +56,32 @@ function buildChartOption(data: number[], cfg: typeof CHART_CONFIGS[TrendKey]): 
 }
 
 export function useCharts() {
-  const trendData = ref<Record<TrendKey, number[]>>({
-    weldVoltage: generateInitialData(24, 2),
-    arcVoltage: generateInitialData(20, 1.5),
-    wireSpeed: generateInitialData(8.2, 0.3),
-    gasFlow: generateInitialData(15, 1),
-  })
-
-  const chartInstances: echarts.ECharts[] = []
-  let trendTimer: number | null = null
+  const chartInstances = new Set<echarts.ECharts>()
 
   function initChart(el: HTMLElement, key: TrendKey): echarts.ECharts {
     const chart = echarts.init(el)
     const cfg = CHART_CONFIGS[key]
-    chart.setOption(buildChartOption(trendData.value[key], cfg))
-    chartInstances.push(chart)
+    chart.setOption(buildChartOption([], cfg))
+    chartInstances.add(chart)
     return chart
   }
 
-  function updateCharts(chartMap: Record<TrendKey, echarts.ECharts | null>) {
+  function setSeriesData(chartMap: Record<TrendKey, echarts.ECharts | null>, dataMap: Record<TrendKey, number[]>) {
     for (const key of Object.keys(CHART_CONFIGS) as TrendKey[]) {
-      const cfg = CHART_CONFIGS[key]
-      const arr = trendData.value[key]
-      const last = arr[arr.length - 1]
-      const next = Number((last + (Math.random() - 0.5) * cfg.jitter).toFixed(2))
-      arr.push(next)
-      if (arr.length > 20) arr.shift()
       const chart = chartMap[key]
-      if (chart) chart.setOption(buildChartOption(arr, cfg))
+      if (!chart) continue
+      chart.setOption(buildChartOption(dataMap[key] || [], CHART_CONFIGS[key]))
     }
   }
 
-  function startTrendTimer(chartMap: Record<TrendKey, echarts.ECharts | null>) {
-    trendTimer = window.setInterval(() => updateCharts(chartMap), 2000)
-  }
-
   function resizeAll() {
-    chartInstances.forEach(c => c.resize())
+    chartInstances.forEach((c) => c.resize())
   }
 
   function dispose() {
-    if (trendTimer) window.clearInterval(trendTimer)
-    chartInstances.forEach(c => c.dispose())
-    chartInstances.length = 0
+    chartInstances.forEach((c) => c.dispose())
+    chartInstances.clear()
   }
 
-  return { trendData, initChart, startTrendTimer, resizeAll, dispose, CHART_CONFIGS }
+  return { initChart, setSeriesData, resizeAll, dispose, CHART_CONFIGS }
 }
