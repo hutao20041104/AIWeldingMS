@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, nextTick } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Search } from '@element-plus/icons-vue'
 import { API_BASE_URL } from '../../composables/useAuth'
@@ -168,6 +168,63 @@ function toDatetimeLocal(value?: string) {
   if (Number.isNaN(date.getTime())) return ''
   const pad = (n: number) => `${n}`.padStart(2, '0')
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`
+}
+
+const startTimePickerRef = ref()
+const endTimePickerRef = ref()
+
+const startDate = computed({
+  get: () => form.value.start_time ? form.value.start_time.split('T')[0] : '',
+  set: (val: string) => {
+    const time = form.value.start_time ? form.value.start_time.split('T')[1] : '00:00:00'
+    form.value.start_time = val ? `${val}T${time}` : ''
+    if (val) {
+      nextTick(() => {
+        startTimePickerRef.value?.focus()
+      })
+    }
+  }
+})
+
+const startTimeOnly = computed({
+  get: () => form.value.start_time ? form.value.start_time.split('T')[1] : '',
+  set: (val: string) => {
+    const date = form.value.start_time ? form.value.start_time.split('T')[0] : new Date().toISOString().split('T')[0]
+    form.value.start_time = `${date}T${val || '00:00:00'}`
+    handleStartTimeChange(form.value.start_time)
+  }
+})
+
+const endDate = computed({
+  get: () => form.value.end_time ? form.value.end_time.split('T')[0] : '',
+  set: (val: string) => {
+    const time = form.value.end_time ? form.value.end_time.split('T')[1] : '00:00:00'
+    form.value.end_time = val ? `${val}T${time}` : ''
+    if (val) {
+      nextTick(() => {
+        endTimePickerRef.value?.focus()
+      })
+    }
+  }
+})
+
+const endTimeOnly = computed({
+  get: () => form.value.end_time ? form.value.end_time.split('T')[1] : '',
+  set: (val: string) => {
+    const date = form.value.end_time ? form.value.end_time.split('T')[0] : new Date().toISOString().split('T')[0]
+    form.value.end_time = `${date}T${val || '00:00:00'}`
+  }
+})
+
+function handleStartTimeChange(value: string | null) {
+  if (value) {
+    const startDate = new Date(value)
+    if (!Number.isNaN(startDate.getTime())) {
+      const endDate = new Date(startDate.getTime() + 90 * 60000)
+      const pad = (n: number) => `${n}`.padStart(2, '0')
+      form.value.end_time = `${endDate.getFullYear()}-${pad(endDate.getMonth() + 1)}-${pad(endDate.getDate())}T${pad(endDate.getHours())}:${pad(endDate.getMinutes())}:00`
+    }
+  }
 }
 
 async function fetchCourses() {
@@ -574,9 +631,13 @@ onMounted(async () => {
               height="200"
               v-loading="studentsLoading"
             >
-              <el-table-column label="选择" width="60">
+              <el-table-column width="100" align="center">
+                <template #header>
+                  <span>选择 ({{ form.student_ids.length }})</span>
+                </template>
                 <template #default="{ row }">
                   <el-checkbox
+                    size="large"
                     :model-value="form.student_ids.includes(row.id)"
                     @change="
                       (checked: boolean) => {
@@ -595,7 +656,6 @@ onMounted(async () => {
               <el-table-column prop="major" label="专业" min-width="140" />
               <el-table-column prop="class_name" label="班级" min-width="140" />
             </el-table>
-            <div style="margin-top: 8px; color: #606266">已选择学生：{{ form.student_ids.length }} 人</div>
           </div>
         </el-form-item>
 
@@ -610,6 +670,9 @@ onMounted(async () => {
           <el-col :span="12">
             <el-form-item label="助教学生">
               <el-select v-model="form.assistant_student_id" clearable placeholder="可选：从已选学生指定助教" style="width: 100%">
+                <template #empty>
+                  <p class="el-select-dropdown__empty">请先添加学生</p>
+                </template>
                 <el-option
                   v-for="item in allStudents.filter((s) => form.student_ids.includes(s.id))"
                   :key="item.id"
@@ -623,6 +686,9 @@ onMounted(async () => {
 
         <el-form-item label="设备展示">
           <el-table :data="selectedClassroomDevicesPairs" border height="136" style="width: 100%">
+            <template #empty>
+              <span style="color: #909399;">{{ form.classroom ? '该教室暂无设备' : '请先选择教室' }}</span>
+            </template>
             <el-table-column label="设备编号" min-width="140">
               <template #default="{ row }">{{ row.dev1?.device_code }}</template>
             </el-table-column>
@@ -646,21 +712,44 @@ onMounted(async () => {
           </el-table>
         </el-form-item>
 
-        <el-form-item label="授课时间">
-          <el-date-picker
-            v-model="form.start_time"
-            type="datetime"
-            value-format="YYYY-MM-DDTHH:mm:ss"
-            placeholder="开始时间"
-            style="width: 240px; margin-right: 12px"
-          />
-          <el-date-picker
-            v-model="form.end_time"
-            type="datetime"
-            value-format="YYYY-MM-DDTHH:mm:ss"
-            placeholder="结束时间"
-            style="width: 240px"
-          />
+        <el-form-item label="授课时间" style="margin-bottom: 22px;">
+          <div style="display: flex; align-items: center;">
+            <div style="display: flex; gap: 8px; margin-right: 16px">
+              <el-date-picker
+                v-model="startDate"
+                type="date"
+                value-format="YYYY-MM-DD"
+                placeholder="开始日期"
+                style="width: 140px"
+              />
+              <el-time-picker
+                ref="startTimePickerRef"
+                v-model="startTimeOnly"
+                value-format="HH:mm:ss"
+                format="HH:mm"
+                placeholder="时间"
+                style="width: 100px"
+              />
+            </div>
+            <span style="margin-right: 16px; color: #909399;">至</span>
+            <div style="display: flex; gap: 8px;">
+              <el-date-picker
+                v-model="endDate"
+                type="date"
+                value-format="YYYY-MM-DD"
+                placeholder="结束日期"
+                style="width: 140px"
+              />
+              <el-time-picker
+                ref="endTimePickerRef"
+                v-model="endTimeOnly"
+                value-format="HH:mm:ss"
+                format="HH:mm"
+                placeholder="时间"
+                style="width: 100px"
+              />
+            </div>
+          </div>
         </el-form-item>
       </el-form>
       <template #footer>
