@@ -374,7 +374,7 @@ watch(
 .ds-btn-icon { display: flex; align-items: center; justify-content: center; padding: 6px; }
 
 /* BODY 3-col */
-.ds-body { display: grid; grid-template-columns: 0.8fr 1.2fr 1fr; gap: 16px; flex: 1; min-height: 0; padding-top: 14px; overflow: hidden; }
+.ds-body { display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.2fr) minmax(0, 0.9fr); gap: 16px; flex: 1; min-height: 0; padding-top: 14px; overflow: hidden; }
 
 /* TECH PANELS */
 .ds-panel, .ds-chart-card {
@@ -398,7 +398,7 @@ watch(
 }
 
 /* LEFT */
-.ds-left { display: flex; flex-direction: column; gap: 14px; overflow-y: auto; padding-right: 4px; }
+.ds-left { display: flex; flex-direction: column; gap: 14px; overflow-y: auto; padding-right: 4px; min-width: 0; }
 .ds-panel-title { font-size: 13px; font-weight: 600; color: #d7f6ff; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; text-shadow: 0 0 8px rgba(0,229,255,0.4); }
 .tech-dot { width: 4px; height: 14px; background: #00e5ff; display: inline-block; box-shadow: 0 0 8px #00e5ff; transform: skewX(-15deg); }
 .tech-dot.green { background: #39ff14; box-shadow: 0 0 8px #39ff14; }
@@ -474,7 +474,7 @@ watch(
 }
 
 /* CENTER */
-.ds-center { display: flex; flex-direction: column; gap: 14px; overflow: hidden; padding: 0 4px; }
+.ds-center { display: flex; flex-direction: column; gap: 14px; overflow: hidden; padding: 0 4px; min-width: 0; }
 .ds-gauges { display: flex; justify-content: center; align-items: center; gap: 32px; padding: 16px 0; }
 .ds-gauge { position: relative; display: flex; align-items: center; justify-content: center; }
 .ds-gauge svg { width: 130px; height: 130px; filter: drop-shadow(0 0 8px currentColor); }
@@ -559,7 +559,7 @@ watch(
 .ds-dev-code { font-size: 11px; color: rgba(255,255,255,0.7); margin-top: 6px; font-family: 'Courier New', monospace; letter-spacing: 1px; }
 
 /* RIGHT */
-.ds-right { display: flex; flex-direction: column; gap: 14px; overflow-y: auto; }
+.ds-right { display: flex; flex-direction: column; gap: 14px; overflow-y: auto; min-width: 0; }
 .ds-chart-card { display: flex; flex-direction: column; flex: 1; min-height: 0; padding: 10px 12px; }
 .ds-chart-title { font-size: 13px; font-weight: 600; color: #d7f6ff; margin-bottom: 6px; display: flex; align-items: center; gap: 8px; text-shadow: 0 0 8px rgba(0,229,255,0.4); }
 .ds-chart-box { flex: 1; min-height: 120px; }
@@ -612,7 +612,7 @@ watch(
 }
 
 @media(max-width:1300px) {
-  .ds-body { grid-template-columns: 240px 1fr 280px; }
+  .ds-body { grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.2fr) minmax(0, 0.9fr); }
 }
 @media(max-width:1100px) {
   .ds-body { grid-template-columns: 1fr; grid-template-rows: auto 1fr auto; }
