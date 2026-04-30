@@ -116,3 +116,27 @@ class CourseGrade(models.Model):
             self.final_score = None
         super().save(*args, **kwargs)
 
+
+class TeacherCalendarOverride(models.Model):
+    DAY_TYPE_CHOICES = (
+        ("work", "工作(班)"),
+        ("rest", "休息(休)"),
+    )
+    teacher = models.ForeignKey(Teacher, on_delete=models.CASCADE, related_name="calendar_overrides", verbose_name="教师")
+    date = models.DateField(verbose_name="日期")
+    day_type = models.CharField(max_length=10, choices=DAY_TYPE_CHOICES, verbose_name="类型")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="创建时间")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="更新时间")
+
+    class Meta:
+        db_table = "teacher_calendar_overrides"
+        verbose_name = "教师日历设置"
+        verbose_name_plural = "教师日历设置"
+        constraints = [
+            models.UniqueConstraint(fields=["teacher", "date"], name="uniq_teacher_date_override"),
+        ]
+
+    def __str__(self):
+        return f"{self.teacher.username} - {self.date} ({self.get_day_type_display()})"
+
+

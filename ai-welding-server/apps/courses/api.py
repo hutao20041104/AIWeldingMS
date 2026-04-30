@@ -7,7 +7,7 @@ from django.db import transaction
 from django.utils import timezone
 from ninja import Router, Schema
 
-from apps.courses.models import Course, CourseGroupAssignment, CourseStudent, DeviceTelemetry, CourseGrade
+from apps.courses.models import Course, CourseGroupAssignment, CourseStudent, DeviceTelemetry, CourseGrade, TeacherCalendarOverride
 from apps.devices.models import Device
 from apps.users.models import ClassCatalog, MajorCatalog, Student, Teacher
 from core.auth import JWTAuth
@@ -739,3 +739,46 @@ def list_student_grade_history(request, student_id: str):
             "graded_at": g.updated_at.isoformat() if g.updated_at else None,
         })
     return results
+
+
+class CalendarOverrideIn(Schema):
+    date: str
+    day_type: str
+
+class CalendarOverrideOut(Schema):
+    date: str
+    day_type: str
+
+@router.get("/calendar/overrides/", auth=JWTAuth(), response={200: list[CalendarOverrideOut], 403: dict})
+def list_calendar_overrides(request):
+    teacher = _teacher_profile_or_none(request.auth)
+    if not teacher:
+        return 403, {"message": "权限不足"}
+    
+    overrides = TeacherCalendarOverride.objects.filter(teacher=teacher)
+    return [{"date": str(o.date), "day_type": o.day_type} for o in overrides]
+
+@router.post("/calendar/overrides/", auth=JWTAuth(), response={200: dict, 400: dict, 403: dict})
+def set_calendar_override(request, payload: CalendarOverrideIn):
+    teacher = _teacher_profile_or_none(request.auth)
+    if not teacher:
+        return 403, {"message": "权限不足"}
+    
+    try:
+        dt = datetime.strptime(payload.date, "%Y-%m-%d").date()
+    except ValueError:
+        return 400, {"message": "日期格式错误"}
+        
+    if payload.day_type == "default":
+        TeacherCalendarOverride.objects.filter(teacher=teacher, date=dt).delete()
+        return {"message": "恢复默认成功"}
+        
+    if payload.day_type not in ["work", "rest"]:
+        return 400, {"message": "类型错误"}
+        
+    TeacherCalendarOverride.objects.update_or_create(
+        teacher=teacher,
+        date=dt,
+        defaults={"day_type": payload.day_type}
+    )
+    return {"message": "保存成功"}

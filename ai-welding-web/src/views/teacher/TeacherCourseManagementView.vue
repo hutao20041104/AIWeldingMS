@@ -3,6 +3,7 @@ import { computed, onMounted, ref, nextTick } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Search, Clock, Location } from '@element-plus/icons-vue'
 import { API_BASE_URL } from '../../composables/useAuth'
+import { HolidayUtil, Lunar } from 'lunar-javascript'
 
 type CourseRow = {
   id: number
@@ -512,8 +513,96 @@ async function saveCourse() {
 }
 
 onMounted(async () => {
-  await Promise.all([fetchOptions(), fetchCourses()])
+  await Promise.all([fetchOptions(), fetchCourses(), fetchCalendarOverrides()])
 })
+
+const calendarOverrides = ref<Record<string, string>>({})
+
+async function fetchCalendarOverrides() {
+  try {
+    const res = await fetch(`${API_BASE_URL}/api/courses/calendar/overrides/`, { headers: { ...authHeaders() } })
+    const data = await res.json()
+    if (res.ok) {
+      const overrides: Record<string, string> = {}
+      data.forEach((item: any) => {
+        overrides[item.date] = item.day_type
+      })
+      calendarOverrides.value = overrides
+    }
+  } catch (e) {
+    console.error('Failed to fetch overrides', e)
+  }
+}
+
+async function handleOverrideChange(dateString: string, dayType: string) {
+  const parts = dateString.split('-')
+  const y = parseInt(parts[0])
+  const m = parseInt(parts[1])
+  const d = parseInt(parts[2])
+  const standardizedDate = `${y}-${m.toString().padStart(2, '0')}-${d.toString().padStart(2, '0')}`
+
+  try {
+    const res = await fetch(`${API_BASE_URL}/api/courses/calendar/overrides/`, {
+      method: 'POST',
+      headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ date: standardizedDate, day_type: dayType })
+    })
+    if (res.ok) {
+      if (dayType === 'default') {
+        delete calendarOverrides.value[standardizedDate]
+      } else {
+        calendarOverrides.value[standardizedDate] = dayType
+      }
+      ElMessage.success('设置成功')
+    } else {
+      ElMessage.error('设置失败')
+    }
+  } catch (e) {
+    ElMessage.error('网络异常，设置失败')
+  }
+}
+
+function getDayInfo(dateString: string) {
+  const parts = dateString.split('-')
+  const y = parseInt(parts[0])
+  const m = parseInt(parts[1])
+  const d = parseInt(parts[2])
+  const standardizedDate = `${y}-${m.toString().padStart(2, '0')}-${d.toString().padStart(2, '0')}`
+  
+  const holiday = HolidayUtil.getHoliday(y, m, d)
+  const dateObj = new Date(y, m - 1, d)
+  
+  let defaultType = 'work'
+  let holidayName = ''
+  let isWeekend = false
+  
+  if (holiday) {
+    defaultType = holiday.isWork() ? 'work' : 'rest'
+    holidayName = holiday.getName()
+  } else {
+    const dayOfWeek = dateObj.getDay()
+    if (dayOfWeek === 0 || dayOfWeek === 6) {
+      defaultType = 'rest'
+      isWeekend = true
+    } else {
+      const lunar = Lunar.fromDate(dateObj)
+      const festivals = lunar.getFestivals()
+      if (festivals.length > 0) {
+         holidayName = festivals[0]
+      }
+    }
+  }
+  
+  const overrideType = calendarOverrides.value[standardizedDate]
+  const finalType = overrideType || defaultType
+  
+  return {
+    isRest: finalType === 'rest',
+    holidayName,
+    hasOverride: !!overrideType,
+    isWeekend
+  }
+}
 </script>
 
 <template>
@@ -592,7 +681,25 @@ onMounted(async () => {
 
               <template #date-cell="{ data }">
                 <div class="calendar-cell" :class="{ 'is-other-month': data.type !== 'current-month' }">
-                  <span class="date-num" :class="{ 'is-today': data.type === 'today' || data.day === new Date().toISOString().split('T')[0] }">{{ data.day.split('-').pop() }}</span>
+                  <div class="date-header-wrap">
+                    <span class="date-num" :class="{ 'is-today': data.type === 'today' || data.day === new Date().toISOString().split('T')[0] }">{{ data.day.split('-').pop() }}</span>
+                    <div class="date-info-wrap">
+                      <span v-if="getDayInfo(data.day).holidayName" class="holiday-name">{{ getDayInfo(data.day).holidayName }}</span>
+                      
+                      <el-dropdown trigger="click" @command="(cmd: string) => handleOverrideChange(data.day, cmd)">
+                        <span class="day-badge" :class="[getDayInfo(data.day).isRest ? 'is-rest' : 'is-work', { 'has-override': getDayInfo(data.day).hasOverride }]">
+                          {{ getDayInfo(data.day).isRest ? '休' : '班' }}
+                        </span>
+                        <template #dropdown>
+                          <el-dropdown-menu>
+                            <el-dropdown-item command="rest">设为休息(休)</el-dropdown-item>
+                            <el-dropdown-item command="work">设为工作(班)</el-dropdown-item>
+                            <el-dropdown-item command="default" divided>恢复默认设置</el-dropdown-item>
+                          </el-dropdown-menu>
+                        </template>
+                      </el-dropdown>
+                    </div>
+                  </div>
                   <div class="course-list">
               <template v-if="coursesByDate[data.day]">
                 <el-popover
@@ -874,27 +981,64 @@ onMounted(async () => {
 .calendar-wrapper {
   flex: 1;
   overflow-y: auto;
+  padding: 12px 20px;
 }
+
 :deep(.el-calendar) {
-  background: transparent;
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 
+    0 10px 25px rgba(0,0,0,0.06),
+    0 4px 10px rgba(0,0,0,0.04),
+    inset 0 -4px 0 rgba(0,0,0,0.02);
+  position: relative;
+  overflow: visible;
+  margin-top: 12px;
 }
+
+/* Simulate physical metal ring binders */
+:deep(.el-calendar::before) {
+  content: '';
+  position: absolute;
+  top: -10px;
+  left: 40px;
+  right: 40px;
+  height: 20px;
+  background: repeating-linear-gradient(
+    to right,
+    transparent,
+    transparent 14px,
+    #909399 14px,
+    #909399 20px,
+    transparent 20px,
+    transparent 36px
+  );
+  z-index: 10;
+  opacity: 0.8;
+  filter: drop-shadow(0 2px 2px rgba(0,0,0,0.2));
+  pointer-events: none;
+}
+
 :deep(.el-calendar__header) {
-  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
-  padding: 8px 16px;
+  background: #fdf5f5;
+  border-top: 8px solid #f56c6c;
+  border-radius: 12px 12px 0 0;
+  border-bottom: 1px dashed rgba(0, 0, 0, 0.08);
+  padding: 12px 16px;
 }
 :deep(.el-calendar-table .el-calendar-day) {
-  height: 60px;
+  height: 64px;
   padding: 4px;
   border: none;
   background: transparent;
   transition: all 0.2s ease;
 }
 :deep(.el-calendar-table td) {
-  border-right: 1px solid rgba(0, 0, 0, 0.03);
-  border-bottom: 1px solid rgba(0, 0, 0, 0.03);
+  border-right: 1px dashed rgba(0, 0, 0, 0.05);
+  border-bottom: 1px dashed rgba(0, 0, 0, 0.05);
 }
 :deep(.el-calendar-table .el-calendar-day:hover) {
-  background: rgba(255, 255, 255, 0.5);
+  background: rgba(245, 247, 250, 0.6);
 }
 
 .calendar-cell {
@@ -906,8 +1050,10 @@ onMounted(async () => {
   font-size: 14px;
   font-weight: 500;
   color: #606266;
-  margin-bottom: 6px;
   display: inline-block;
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
 }
 .date-num.is-today {
   color: #409eff;
@@ -1172,5 +1318,59 @@ onMounted(async () => {
 .course-details .course-time-room .el-icon {
   margin-right: 4px;
   vertical-align: text-bottom;
+}
+
+.date-header-wrap {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  margin-bottom: 2px;
+  height: 24px;
+  position: relative;
+}
+
+.date-info-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.holiday-name {
+  font-size: 11px;
+  color: #409eff;
+  background: #ecf5ff;
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-weight: 500;
+}
+
+.day-badge {
+  font-size: 11px;
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.day-badge:hover {
+  opacity: 0.8;
+}
+
+.day-badge.is-rest {
+  color: #67c23a;
+  background: #f0f9eb;
+  border: 1px solid #c2e7b0;
+}
+
+.day-badge.is-work {
+  color: #f56c6c;
+  background: #fef0f0;
+  border: 1px solid #fbc4c4;
+}
+
+.day-badge.has-override {
+  box-shadow: 0 0 0 1px currentColor inset;
+  border-style: dashed;
 }
 </style>
