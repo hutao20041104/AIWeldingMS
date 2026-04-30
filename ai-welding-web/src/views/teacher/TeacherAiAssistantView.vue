@@ -3,6 +3,7 @@ import { ref, onMounted, computed, nextTick } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Plus, ChatDotRound, Cpu } from '@element-plus/icons-vue'
 import { currentUser, API_BASE_URL } from '../../composables/useAuth'
+import defaultTeacherAvatar from '../../assets/default_teacher.png'
 import { marked } from 'marked'
 import DOMPurify from 'dompurify'
 import aiAvatarSrc from '../../assets/robot.png'
@@ -34,7 +35,7 @@ const userAvatarSrc = computed(() => {
     if (/^https?:\/\//i.test(avatar)) return avatar
     return `${API_BASE_URL}${avatar}`
   }
-  return `https://api.dicebear.com/7.x/adventurer/svg?seed=${currentUser.value?.username || 'user'}`
+  return defaultTeacherAvatar
 })
 
 

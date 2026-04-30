@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { Search } from '@element-plus/icons-vue'
 import { API_BASE_URL } from '../../composables/useAuth'
 
 type CourseRow = {
@@ -99,6 +100,20 @@ const filteredTableData = computed(() => {
   })
 })
 
+const coursesByDate = computed(() => {
+  const map: Record<string, CourseRow[]> = {}
+  tableData.value.forEach(course => {
+    if (!course.start_time) return
+    const dateObj = new Date(course.start_time)
+    if (Number.isNaN(dateObj.getTime())) return
+    const pad = (n: number) => `${n}`.padStart(2, '0')
+    const dateKey = `${dateObj.getFullYear()}-${pad(dateObj.getMonth() + 1)}-${pad(dateObj.getDate())}`
+    if (!map[dateKey]) map[dateKey] = []
+    map[dateKey].push(course)
+  })
+  return map
+})
+
 const pagedTableData = computed(() => {
   const start = (currentPage.value - 1) * pageSize
   return filteredTableData.value.slice(start, start + pageSize)
@@ -124,6 +139,14 @@ function formatTime(value?: string) {
   if (Number.isNaN(date.getTime())) return value
   const pad = (n: number) => `${n}`.padStart(2, '0')
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`
+}
+
+function formatShortTime(value?: string) {
+  if (!value) return ''
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return ''
+  const pad = (n: number) => `${n}`.padStart(2, '0')
+  return `${pad(date.getHours())}:${pad(date.getMinutes())}`
 }
 
 function toDatetimeLocal(value?: string) {
@@ -417,34 +440,75 @@ onMounted(async () => {
 </script>
 
 <template>
-  <section class="module-page">
-    <el-card class="module-table-card" shadow="never">
+  <section class="course-management-page">
+    <!-- 日历视图 -->
+    <el-card class="glass-card calendar-card" shadow="never" v-loading="loading">
+      <el-calendar>
+        <template #date-cell="{ data }">
+          <div class="calendar-cell">
+            <span class="date-num" :class="{ 'is-today': data.type === 'today' }">{{ data.day.split('-').pop() }}</span>
+            <div class="course-list">
+              <template v-if="coursesByDate[data.day]">
+                <el-tooltip
+                  v-for="course in coursesByDate[data.day].slice(0, 3)"
+                  :key="course.id"
+                  :content="`${formatShortTime(course.start_time)} - ${course.classroom} - ${course.class_display}`"
+                  placement="top"
+                >
+                  <div class="course-badge" :class="course.status">
+                    <span class="c-time">{{ formatShortTime(course.start_time) }}</span>
+                    <span class="c-name">{{ course.class_display.split('-')[0] || course.class_display }}</span>
+                  </div>
+                </el-tooltip>
+                <div v-if="coursesByDate[data.day].length > 3" class="course-more">
+                  +{{ coursesByDate[data.day].length - 3 }} 更多
+                </div>
+              </template>
+            </div>
+          </div>
+        </template>
+      </el-calendar>
+    </el-card>
+
+    <!-- 列表视图 -->
+    <el-card class="glass-card list-card" shadow="never">
       <div class="module-toolbar">
-        <el-button type="primary" @click="openCreateDialog">添加课程</el-button>
-        <el-input v-model="keyword" placeholder="搜索课程编号/地点/班级(专业)" clearable class="module-search" />
+        <h2 class="section-title">课程列表详情</h2>
+        <div class="toolbar-actions">
+          <el-input v-model="keyword" placeholder="搜索课程编号/地点/班级(专业)" clearable class="module-search" :prefix-icon="Search" />
+          <el-button type="primary" class="gradient-btn" @click="openCreateDialog">添加课程</el-button>
+        </div>
       </div>
       <div class="module-table-wrap">
-        <el-table :data="pagedTableData" border v-loading="loading">
+        <el-table :data="pagedTableData" border v-loading="loading" class="custom-table" header-cell-class-name="custom-table-header">
           <el-table-column prop="course_code" label="课程编号" min-width="180" />
-          <el-table-column prop="classroom" label="地点" min-width="140" />
-          <el-table-column prop="class_display" label="班级(专业)" min-width="220" />
-          <el-table-column prop="status_label" label="状态" width="120" />
-          <el-table-column label="学生人数" width="100">
+          <el-table-column prop="classroom" label="地点" min-width="120" />
+          <el-table-column prop="class_display" label="班级(专业)" min-width="200" />
+          <el-table-column prop="status_label" label="状态" width="100">
             <template #default="{ row }">
-              {{ row.student_count }}
+              <el-tag :type="row.status === 'in_progress' ? 'success' : row.status === 'not_started' ? 'info' : 'warning'" effect="light">
+                {{ row.status_label }}
+              </el-tag>
             </template>
           </el-table-column>
-          <el-table-column label="创建时间" min-width="170">
+          <el-table-column label="人数" width="80" align="center">
             <template #default="{ row }">
-              {{ formatTime(row.created_at) }}
+              <span class="number-cell">{{ row.student_count }}</span>
             </template>
           </el-table-column>
-          <el-table-column label="操作" width="180" fixed="right">
+          <el-table-column label="上课时间" min-width="160">
             <template #default="{ row }">
-              <el-button link type="primary" :disabled="row.status !== 'not_started'" @click="openEditDialog(row)">
-                编辑
-              </el-button>
-              <el-button link type="primary" @click="openGroupingDialog(row)">分组</el-button>
+              <div class="time-cell">
+                <span class="time-label">{{ formatTime(row.start_time) }}</span>
+                <span class="time-divider">至</span>
+                <span class="time-label">{{ formatShortTime(row.end_time) }}</span>
+              </div>
+            </template>
+          </el-table-column>
+          <el-table-column label="操作" width="200" fixed="right">
+            <template #default="{ row }">
+              <el-button link type="primary" :disabled="row.status !== 'not_started'" @click="openEditDialog(row)">编辑</el-button>
+              <el-button link type="primary" @click="openGroupingDialog(row)">设备分配</el-button>
               <el-button link type="danger" :disabled="row.status === 'ended'" @click="handleDelete(row)">删除</el-button>
             </template>
           </el-table-column>
@@ -456,6 +520,7 @@ onMounted(async () => {
           :page-size="pageSize"
           layout="total, prev, pager, next"
           :total="filteredTableData.length"
+          background
         />
       </div>
     </el-card>
@@ -583,3 +648,232 @@ onMounted(async () => {
     </el-dialog>
   </section>
 </template>
+
+<style scoped>
+.course-management-page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 16px;
+  background: linear-gradient(135deg, #f0f4f8 0%, #e2eafc 100%);
+  height: calc(100vh - 64px);
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.glass-card {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  border-radius: 16px;
+  box-shadow: 0 8px 32px rgba(31, 38, 135, 0.05);
+  transition: all 0.3s ease;
+}
+.glass-card:hover {
+  box-shadow: 0 12px 40px rgba(31, 38, 135, 0.1);
+}
+
+/* Calendar Styles */
+.calendar-card {
+  padding: 0;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+:deep(.el-calendar) {
+  background: transparent;
+}
+:deep(.el-calendar__header) {
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+  padding: 8px 16px;
+}
+:deep(.el-calendar-table .el-calendar-day) {
+  height: 60px;
+  padding: 4px;
+  border: none;
+  background: transparent;
+  transition: all 0.2s ease;
+}
+:deep(.el-calendar-table td) {
+  border-right: 1px solid rgba(0, 0, 0, 0.03);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.03);
+}
+:deep(.el-calendar-table .el-calendar-day:hover) {
+  background: rgba(255, 255, 255, 0.5);
+}
+
+.calendar-cell {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+.date-num {
+  font-size: 14px;
+  font-weight: 500;
+  color: #606266;
+  margin-bottom: 6px;
+  display: inline-block;
+}
+.date-num.is-today {
+  color: #409eff;
+  font-weight: bold;
+  background: #e6f1fc;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  text-align: center;
+  line-height: 24px;
+}
+
+.course-list {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.course-list::-webkit-scrollbar {
+  width: 4px;
+}
+.course-list::-webkit-scrollbar-thumb {
+  background: rgba(0,0,0,0.1);
+  border-radius: 4px;
+}
+
+.course-badge {
+  display: flex;
+  align-items: center;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  cursor: pointer;
+  background: #f0f2f5;
+  border: 1px solid transparent;
+  transition: all 0.2s;
+}
+.course-badge:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+.course-badge.not_started {
+  background: #e6f1fc;
+  color: #409eff;
+  border-color: #c6e2ff;
+}
+.course-badge.in_progress {
+  background: #f0f9eb;
+  color: #67c23a;
+  border-color: #e1f3d8;
+}
+.course-badge.ended {
+  background: #f4f4f5;
+  color: #909399;
+  border-color: #e9e9eb;
+}
+.c-time {
+  font-weight: 600;
+  margin-right: 4px;
+}
+.c-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+}
+.course-more {
+  font-size: 12px;
+  color: #909399;
+  text-align: center;
+  margin-top: 2px;
+}
+
+/* List Card Styles */
+.list-card {
+  padding: 16px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.module-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+.section-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #303133;
+  letter-spacing: 0.5px;
+}
+.toolbar-actions {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+.module-search {
+  width: 280px;
+}
+:deep(.module-search .el-input__wrapper) {
+  border-radius: 20px;
+  box-shadow: 0 0 0 1px #dcdfe6 inset;
+  background: rgba(255,255,255,0.8);
+}
+
+.gradient-btn {
+  background: linear-gradient(135deg, #409eff 0%, #3a8ee6 100%);
+  border: none;
+  border-radius: 20px;
+  padding: 8px 20px;
+  box-shadow: 0 4px 12px rgba(64, 158, 255, 0.3);
+  transition: all 0.3s;
+}
+.gradient-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(64, 158, 255, 0.4);
+}
+
+.module-table-wrap {
+  flex: 1;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid #ebeef5;
+  display: flex;
+  flex-direction: column;
+}
+:deep(.el-table) {
+  height: 100% !important;
+}
+:deep(.custom-table) {
+  --el-table-border-color: #ebeef5;
+  --el-table-header-bg-color: #f8f9fb;
+}
+:deep(.custom-table-header th) {
+  color: #606266;
+  font-weight: 600;
+}
+.number-cell {
+  font-weight: 600;
+  color: #303133;
+}
+.time-cell {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.time-label {
+  font-family: 'Inter', monospace;
+  color: #606266;
+}
+.time-divider {
+  color: #c0c4cc;
+  font-size: 12px;
+}
+
+.module-pagination {
+  margin-top: 12px;
+  display: flex;
+  justify-content: flex-end;
+}
+</style>

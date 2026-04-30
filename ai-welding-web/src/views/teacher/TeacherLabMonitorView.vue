@@ -6,6 +6,8 @@ import { API_BASE_URL, currentUser } from '../../composables/useAuth'
 import { useCharts } from '../../composables/useCharts'
 import type * as echarts from 'echarts'
 import dashboardBg from '../../assets/dashboard.png'
+import defaultTeacherAvatar from '../../assets/default_teacher.png'
+import defaultStudentAvatar from '../../assets/default_student.png'
 
 type MonitorStudent = {
   student_id: string; identity_code: string; username: string; avatar?: string | null; major: string; class_name: string
@@ -50,8 +52,8 @@ function authHeaders() {
 }
 
 const teacherName = computed(() => currentUser.value?.username || '教师')
-const teacherAvatarUrl = computed(() => buildAvatarUrl(currentUser.value?.avatar || null, teacherName.value))
-const assistantAvatarUrl = computed(() => buildAvatarUrl(course.value?.assistant_student_avatar || null, course.value?.assistant_student_name || '助教'))
+const teacherAvatarUrl = computed(() => buildAvatarUrl(currentUser.value?.avatar || null, teacherName.value, false))
+const assistantAvatarUrl = computed(() => buildAvatarUrl(course.value?.assistant_student_avatar || null, course.value?.assistant_student_name || '助教', true))
 const totalStudents = computed(() => devices.value.reduce((s, d) => s + d.students.length, 0))
 const ngCount = computed(() => Math.max(0, Math.round(totalStudents.value * 0.06)))
 const goodCount = computed(() => Math.max(0, totalStudents.value - ngCount.value))
@@ -84,12 +86,12 @@ function tickNow() {
   nowWeekday.value = weeks[d.getDay()]
 }
 
-function buildAvatarUrl(avatar: string | null | undefined, seed: string) {
+function buildAvatarUrl(avatar: string | null | undefined, seed: string, isStudent: boolean = true) {
   if (avatar && avatar.trim()) {
     if (/^https?:\/\//i.test(avatar)) return avatar
     return `${API_BASE_URL}${avatar}`
   }
-  return `https://i.pravatar.cc/120?u=${encodeURIComponent(seed || 'user')}`
+  return isStudent ? defaultStudentAvatar : defaultTeacherAvatar
 }
 
 async function fetchMonitor() {

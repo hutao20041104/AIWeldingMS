@@ -14,6 +14,7 @@ import {
 } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { API_BASE_URL, currentUser, useAuth } from '../../composables/useAuth'
+import defaultTeacherAvatar from '../../assets/default_teacher.png'
 import logo from '../../assets/logo.png'
 
 const route = useRoute()
@@ -37,8 +38,7 @@ const userAvatarSrc = computed(() => {
     if (/^https?:\/\//i.test(raw)) return raw
     return `${API_BASE_URL}${raw}`
   }
-  const seed = currentUser.value?.identity_code || currentUser.value?.username || 'teacher'
-  return `https://i.pravatar.cc/96?u=${encodeURIComponent(seed)}`
+  return defaultTeacherAvatar
 })
 
 async function handleMenuSelect(index: string) {

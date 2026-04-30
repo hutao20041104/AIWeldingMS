@@ -3,6 +3,7 @@ import { onMounted, ref } from 'vue'
 import { ElMessage, type UploadRequestOptions } from 'element-plus'
 import { User, Message, Iphone, Camera, Postcard, Key, Loading } from '@element-plus/icons-vue'
 import { API_BASE_URL, currentUser } from '../../composables/useAuth'
+import defaultTeacherAvatar from '../../assets/default_teacher.png'
 
 const loading = ref(false)
 const saving = ref(false)
@@ -28,7 +29,7 @@ function avatarUrl() {
     if (/^https?:\/\//i.test(form.value.avatar)) return form.value.avatar
     return `${API_BASE_URL}${form.value.avatar}`
   }
-  return 'https://i.pravatar.cc/160?u=teacher-profile'
+  return defaultTeacherAvatar
 }
 
 async function fetchProfile() {
