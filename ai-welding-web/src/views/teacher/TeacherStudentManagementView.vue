@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { ElMessage } from 'element-plus'
+import { User, Search, Refresh, Upload, Download } from '@element-plus/icons-vue'
 import { API_BASE_URL } from '../../composables/useAuth'
 
 type StudentRow = {
@@ -34,17 +35,20 @@ const pageSize = 25
 
 const filters = ref({
   identity_code: '',
+  name: '',
   major_code: '',
   class_code: '',
-  class_name: '',
 })
+
+const majors = ref<{ code: string; name: string }[]>([])
+const classes = ref<{ code: string; name: string }[]>([])
 
 const hasFilters = computed(
   () =>
     !!filters.value.identity_code ||
+    !!filters.value.name ||
     !!filters.value.major_code ||
-    !!filters.value.class_code ||
-    !!filters.value.class_name,
+    !!filters.value.class_code,
 )
 
 function authHeaders() {
@@ -74,9 +78,9 @@ async function fetchStudents() {
   try {
     const query = new URLSearchParams()
     if (filters.value.identity_code) query.set('identity_code', filters.value.identity_code.trim())
-    if (filters.value.major_code) query.set('major_code', filters.value.major_code.trim())
-    if (filters.value.class_code) query.set('class_code', filters.value.class_code.trim())
-    if (filters.value.class_name) query.set('class_name', filters.value.class_name.trim())
+    if (filters.value.name) query.set('name', filters.value.name.trim())
+    if (filters.value.major_code) query.set('major_code', filters.value.major_code)
+    if (filters.value.class_code) query.set('class_code', filters.value.class_code)
 
     const suffix = query.toString() ? `?${query}` : ''
     const res = await fetch(`${API_BASE_URL}/api/students${suffix}`, {
@@ -99,9 +103,9 @@ async function fetchStudents() {
 function resetFilters() {
   filters.value = {
     identity_code: '',
+    name: '',
     major_code: '',
     class_code: '',
-    class_name: '',
   }
   fetchStudents()
 }
@@ -233,7 +237,20 @@ async function downloadTemplate() {
   }
 }
 
+async function fetchOptions() {
+  try {
+    const res = await fetch(`${API_BASE_URL}/api/courses/options/?_t=${Date.now()}`, { headers: { ...authHeaders() } })
+    const data = await res.json()
+    if (!res.ok) return
+    majors.value = data.majors || []
+    classes.value = data.classes || []
+  } catch {
+    //
+  }
+}
+
 onMounted(() => {
+  fetchOptions()
   fetchStudents()
 })
 </script>
@@ -244,30 +261,44 @@ onMounted(() => {
       <el-tabs v-model="activeTab" class="custom-tabs">
         <el-tab-pane label="学生信息" name="student-info">
           <div class="module-toolbar">
-            <div class="toolbar-left">
-              <el-input v-model="filters.identity_code" placeholder="按学号筛选" clearable class="module-search search-input" />
-              <el-input v-model="filters.major_code" placeholder="按专业code筛选" clearable class="module-search search-input" />
-              <el-input v-model="filters.class_code" placeholder="按班级code筛选" clearable class="module-search search-input" />
-              <el-input v-model="filters.class_name" placeholder="按班级筛选" clearable class="module-search search-input" />
-              <el-button @click="resetFilters" :disabled="!hasFilters" plain>重置</el-button>
-              <el-button type="primary" @click="fetchStudents" class="gradient-btn">查询</el-button>
+            <div class="section-title-wrap">
+              <div class="title-icon-box">
+                <el-icon><User /></el-icon>
+              </div>
+              <h2 class="section-title">学生档案库</h2>
             </div>
-            <div class="toolbar-right">
-              <el-upload :show-file-list="false" :auto-upload="false" :on-change="handleImportStudents" style="display: inline-block;">
-                <el-button :loading="importing" type="primary" plain>导入学生</el-button>
+            <div class="toolbar-actions">
+              <el-input v-model="filters.identity_code" placeholder="按学号筛选" clearable class="module-search search-input" :prefix-icon="Search" />
+              <el-input v-model="filters.name" placeholder="按姓名筛选" clearable class="module-search search-input" :prefix-icon="Search" />
+              <el-select v-model="filters.major_code" placeholder="按专业筛选" clearable class="module-search search-input">
+                <el-option v-for="item in majors" :key="item.code" :label="item.name" :value="item.code" />
+              </el-select>
+              <el-select v-model="filters.class_code" placeholder="按班级筛选" clearable class="module-search search-input">
+                <el-option v-for="item in classes" :key="item.code" :label="item.name" :value="item.code" />
+              </el-select>
+              <el-button @click="resetFilters" :disabled="!hasFilters" :icon="Refresh" plain>重置</el-button>
+              <el-button type="primary" @click="fetchStudents" class="gradient-btn" :icon="Search">查询</el-button>
+              
+              <div class="divider"></div>
+              
+              <el-upload :show-file-list="false" :auto-upload="false" :on-change="handleImportStudents" style="display: inline-flex;">
+                <el-button :loading="importing" type="primary" plain :icon="Upload">导入学生</el-button>
               </el-upload>
-              <el-button @click="downloadTemplate" plain>下载模板</el-button>
+              <el-button @click="downloadTemplate" plain :icon="Download">下载模板</el-button>
             </div>
           </div>
 
           <div class="module-table-wrap">
             <el-table :data="pagedTableData" border v-loading="loading" class="custom-table" header-cell-class-name="custom-table-header">
-              <el-table-column prop="identity_code" label="学号" width="140" />
-              <el-table-column prop="username" label="姓名" width="140" />
-              <el-table-column prop="major" label="专业" min-width="180" />
-              <el-table-column prop="major_code" label="专业code" width="140" />
-              <el-table-column prop="class_name" label="班级" min-width="160" />
-              <el-table-column prop="class_code" label="班级code" width="140" />
+              <el-table-column prop="identity_code" label="学号" min-width="140" align="center" />
+              <el-table-column prop="username" label="姓名" min-width="140" align="center" />
+              <el-table-column prop="major" label="专业" min-width="180" align="center" />
+              <el-table-column prop="major_code" label="专业代码" min-width="140" align="center" />
+              <el-table-column prop="class_name" label="班级" min-width="160" align="center" />
+              <el-table-column prop="class_code" label="班级代码" min-width="140" align="center" />
+              <template #empty>
+                <el-empty description="暂无匹配的学生档案" :image-size="80" />
+              </template>
             </el-table>
           </div>
           <div class="module-pagination">
@@ -305,24 +336,30 @@ onMounted(() => {
       <el-tabs v-model="importReviewTab">
         <el-tab-pane :label="`正确数据(${importStats.valid_count})`" name="valid">
           <el-scrollbar max-height="360px">
-            <el-table :data="validRows" border>
-              <el-table-column prop="identity_code" label="学号" width="140" />
-              <el-table-column prop="username" label="姓名" width="140" />
-              <el-table-column prop="major" label="专业" min-width="160" />
-              <el-table-column prop="major_code" label="专业code" width="140" />
-              <el-table-column prop="class_code" label="班级code" width="140" />
-              <el-table-column prop="class_name" label="班级" min-width="140" />
+            <el-table :data="validRows" border class="custom-table" header-cell-class-name="custom-table-header">
+              <el-table-column prop="identity_code" label="学号" min-width="140" align="center" />
+              <el-table-column prop="username" label="姓名" min-width="120" align="center" />
+              <el-table-column prop="major" label="专业" min-width="160" align="center" />
+              <el-table-column prop="major_code" label="专业代码" min-width="140" align="center" />
+              <el-table-column prop="class_name" label="班级" min-width="160" align="center" />
+              <el-table-column prop="class_code" label="班级代码" min-width="140" align="center" />
+              <template #empty><el-empty description="暂无正确数据" :image-size="60" /></template>
             </el-table>
           </el-scrollbar>
         </el-tab-pane>
         <el-tab-pane :label="`异常数据(${importStats.invalid_count})`" name="invalid">
           <el-scrollbar max-height="360px">
-            <el-table :data="invalidRows" border>
-              <el-table-column prop="identity_code" label="学号" width="140" />
-              <el-table-column prop="username" label="姓名" width="120" />
-              <el-table-column prop="major" label="专业" width="140" />
-              <el-table-column prop="class_code" label="班级code" width="120" />
-              <el-table-column prop="error_message" label="异常信息" min-width="340" />
+            <el-table :data="invalidRows" border class="custom-table" header-cell-class-name="custom-table-header">
+              <el-table-column prop="identity_code" label="学号" min-width="140" align="center" />
+              <el-table-column prop="username" label="姓名" min-width="120" align="center" />
+              <el-table-column prop="major" label="专业" min-width="140" align="center" />
+              <el-table-column prop="class_code" label="班级代码" min-width="120" align="center" />
+              <el-table-column prop="error_message" label="异常信息" min-width="300" align="center">
+                <template #default="{ row }">
+                  <el-tag type="danger" effect="light" size="small">{{ row.error_message }}</el-tag>
+                </template>
+              </el-table-column>
+              <template #empty><el-empty description="暂无异常数据" :image-size="60" /></template>
             </el-table>
           </el-scrollbar>
         </el-tab-pane>
@@ -360,8 +397,7 @@ onMounted(() => {
   flex-direction: column;
   gap: 16px;
   padding: 16px;
-  background: linear-gradient(135deg, #f0f4f8 0%, #e2eafc 100%);
-  height: calc(100vh - 64px);
+  height: calc(100vh - 80px);
   box-sizing: border-box;
   overflow: hidden;
 }
@@ -411,22 +447,63 @@ onMounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 12px;
+  margin-bottom: 16px;
+  background: linear-gradient(90deg, #f8faff 0%, #ffffff 100%);
+  padding: 12px 16px;
+  border-radius: 12px;
+  border-left: 4px solid #409eff;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.02);
 }
-.toolbar-left {
+
+.section-title-wrap {
   display: flex;
-  gap: 12px;
   align-items: center;
+  gap: 12px;
+}
+.title-icon-box {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #e6f0ff 0%, #ecf5ff 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #409eff;
+  font-size: 18px;
+}
+.section-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #303133;
+  margin: 0;
+  position: relative;
+}
+.section-title::after {
+  content: '';
+  position: absolute;
+  bottom: -4px;
+  left: 0;
+  width: 24px;
+  height: 3px;
+  background: linear-gradient(90deg, #409eff 0%, transparent 100%);
+  border-radius: 2px;
+}
+
+.toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
   flex-wrap: wrap;
 }
-.toolbar-right {
-  display: flex;
-  gap: 12px;
-  align-items: center;
-  flex-shrink: 0;
+.divider {
+  width: 1px;
+  height: 24px;
+  background: #dcdfe6;
+  margin: 0 4px;
 }
+
 .search-input {
-  width: 180px;
+  width: 150px;
 }
 :deep(.search-input .el-input__wrapper) {
   border-radius: 20px;

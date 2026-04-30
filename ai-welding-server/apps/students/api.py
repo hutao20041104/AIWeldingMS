@@ -342,18 +342,20 @@ def list_students(
     major_code: Optional[str] = None,
     class_code: Optional[str] = None,
     class_name: Optional[str] = None,
+    name: Optional[str] = None,
 ):
     if request.auth.role != "teacher":
         logger.warning("List students forbidden user_id=%s role=%s", getattr(request.auth, "id", None), request.auth.role)
         return 403, {"message": "仅教师可查看学生信息"}
 
     logger.info(
-        "List students requested user_id=%s filters(identity_code=%s, major_code=%s, class_code=%s, class_name=%s)",
+        "List students requested user_id=%s filters(identity_code=%s, major_code=%s, class_code=%s, class_name=%s, name=%s)",
         getattr(request.auth, "id", None),
         identity_code,
         major_code,
         class_code,
         class_name,
+        name,
     )
     queryset = Student.objects.select_related("user").filter(user__role="student")
     if identity_code:
@@ -364,6 +366,8 @@ def list_students(
         queryset = queryset.filter(class_code__icontains=class_code.strip())
     if class_name:
         queryset = queryset.filter(class_name__icontains=class_name.strip())
+    if name:
+        queryset = queryset.filter(user__username__icontains=name.strip())
 
     return [
         {
