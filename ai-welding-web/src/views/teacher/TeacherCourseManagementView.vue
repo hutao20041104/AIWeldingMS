@@ -134,6 +134,18 @@ const selectedClassroomDevices = computed(() => {
   return classrooms.value.find((c) => c.classroom === form.value.classroom)?.devices ?? []
 })
 
+const selectedClassroomDevicesPairs = computed(() => {
+  const devices = selectedClassroomDevices.value
+  const pairs = []
+  for (let i = 0; i < devices.length; i += 2) {
+    pairs.push({
+      dev1: devices[i],
+      dev2: devices[i + 1] || null
+    })
+  }
+  return pairs
+})
+
 function formatTime(value?: string) {
   if (!value) return '-'
   const date = new Date(value)
@@ -536,7 +548,7 @@ onMounted(async () => {
       </el-tabs>
     </el-card>
 
-    <el-dialog v-model="dialogVisible" :title="editingCourseId ? '编辑课程' : '添加课程'" width="980px">
+    <el-dialog v-model="dialogVisible" :title="editingCourseId ? '编辑课程' : '添加课程'" width="980px" class="custom-glass-dialog" top="12vh">
       <el-form label-width="120px">
         <el-form-item label="课程编号">
           <el-input :model-value="autoCourseCode || '加载中...'" disabled />
@@ -559,7 +571,7 @@ onMounted(async () => {
             <el-table
               :data="filteredStudents"
               border
-              height="260"
+              height="200"
               v-loading="studentsLoading"
             >
               <el-table-column label="选择" width="60">
@@ -587,27 +599,50 @@ onMounted(async () => {
           </div>
         </el-form-item>
 
-        <el-form-item label="授课地点(教室)">
-          <el-select v-model="form.classroom" filterable placeholder="请选择教室" style="width: 320px">
-            <el-option v-for="item in classrooms" :key="item.classroom" :label="item.classroom" :value="item.classroom" />
-          </el-select>
-        </el-form-item>
+        <el-row :gutter="24">
+          <el-col :span="12">
+            <el-form-item label="授课地点">
+              <el-select v-model="form.classroom" filterable placeholder="请选择教室" style="width: 100%">
+                <el-option v-for="item in classrooms" :key="item.classroom" :label="item.classroom" :value="item.classroom" />
+              </el-select>
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="助教学生">
+              <el-select v-model="form.assistant_student_id" clearable placeholder="可选：从已选学生指定助教" style="width: 100%">
+                <el-option
+                  v-for="item in allStudents.filter((s) => form.student_ids.includes(s.id))"
+                  :key="item.id"
+                  :label="`${item.username} (${item.identity_code})`"
+                  :value="item.id"
+                />
+              </el-select>
+            </el-form-item>
+          </el-col>
+        </el-row>
 
-        <el-form-item label="助教学生">
-          <el-select v-model="form.assistant_student_id" clearable placeholder="可选：从已选学生指定 1 名助教" style="width: 320px">
-            <el-option
-              v-for="item in allStudents.filter((s) => form.student_ids.includes(s.id))"
-              :key="item.id"
-              :label="`${item.username} (${item.identity_code})`"
-              :value="item.id"
-            />
-          </el-select>
-        </el-form-item>
-
-        <el-form-item label="教室设备展示">
-          <el-table :data="selectedClassroomDevices" border style="width: 100%">
-            <el-table-column prop="device_code" label="设备编号" min-width="180" />
-            <el-table-column prop="status_label" label="状态" min-width="120" />
+        <el-form-item label="设备展示">
+          <el-table :data="selectedClassroomDevicesPairs" border height="136" style="width: 100%">
+            <el-table-column label="设备编号" min-width="140">
+              <template #default="{ row }">{{ row.dev1?.device_code }}</template>
+            </el-table-column>
+            <el-table-column label="状态" min-width="100">
+              <template #default="{ row }">
+                <el-tag v-if="row.dev1" :type="row.dev1.status === 'in_use' ? 'success' : row.dev1.status === 'idle' ? 'info' : 'warning'" effect="light">
+                  {{ row.dev1.status_label }}
+                </el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column label="设备编号" min-width="140">
+              <template #default="{ row }">{{ row.dev2?.device_code }}</template>
+            </el-table-column>
+            <el-table-column label="状态" min-width="100">
+              <template #default="{ row }">
+                <el-tag v-if="row.dev2" :type="row.dev2.status === 'in_use' ? 'success' : row.dev2.status === 'idle' ? 'info' : 'warning'" effect="light">
+                  {{ row.dev2.status_label }}
+                </el-tag>
+              </template>
+            </el-table-column>
           </el-table>
         </el-form-item>
 
@@ -634,7 +669,7 @@ onMounted(async () => {
       </template>
     </el-dialog>
 
-    <el-dialog v-model="groupingDialogVisible" title="课程分组" width="960px">
+    <el-dialog v-model="groupingDialogVisible" title="课程分组" width="960px" class="custom-glass-dialog" top="12vh">
       <div style="margin-bottom: 12px">课程编号：{{ groupingCourseCode }}</div>
       <div style="margin-bottom: 12px">
         <el-button type="primary" :loading="groupingSaving" @click="runRandomGrouping">随机分组</el-button>
@@ -873,7 +908,7 @@ onMounted(async () => {
   display: flex;
   flex-direction: column;
 }
-:deep(.el-table) {
+.module-table-wrap :deep(.el-table) {
   height: 100% !important;
 }
 :deep(.custom-table) {
@@ -928,5 +963,15 @@ onMounted(async () => {
   background: rgba(255, 255, 255, 0.96);
   backdrop-filter: blur(4px);
   padding-bottom: 8px;
+}
+
+/* Dialog Styles */
+:deep(.custom-glass-dialog) {
+  border-radius: 16px !important;
+  overflow: hidden;
+}
+:deep(.custom-glass-dialog .el-dialog__title) {
+  font-weight: 600;
+  color: #303133;
 }
 </style>
