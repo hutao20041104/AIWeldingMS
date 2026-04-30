@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, nextTick } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Search } from '@element-plus/icons-vue'
+import { Search, Clock, Location } from '@element-plus/icons-vue'
 import { API_BASE_URL } from '../../composables/useAuth'
 
 type CourseRow = {
@@ -112,6 +112,12 @@ const coursesByDate = computed(() => {
     if (!map[dateKey]) map[dateKey] = []
     map[dateKey].push(course)
   })
+  
+  // 按照开始时间对每天的课程进行排序
+  for (const dateKey in map) {
+    map[dateKey].sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime())
+  }
+  
   return map
 })
 
@@ -589,20 +595,39 @@ onMounted(async () => {
                   <span class="date-num" :class="{ 'is-today': data.type === 'today' || data.day === new Date().toISOString().split('T')[0] }">{{ data.day.split('-').pop() }}</span>
                   <div class="course-list">
               <template v-if="coursesByDate[data.day]">
-                <el-tooltip
-                  v-for="course in coursesByDate[data.day].slice(0, 3)"
-                  :key="course.id"
-                  :content="`${formatShortTime(course.start_time)} - ${course.classroom} - ${course.class_display}`"
-                  placement="top"
+                <el-popover
+                  placement="right"
+                  :width="280"
+                  trigger="hover"
                 >
-                  <div class="course-badge" :class="course.status">
-                    <span class="c-time">{{ formatShortTime(course.start_time) }}</span>
-                    <span class="c-name">{{ course.class_display.split('-')[0] || course.class_display }}</span>
+                  <template #reference>
+                    <div class="course-badge" :class="coursesByDate[data.day][0].status" style="cursor: pointer;">
+                      <span class="c-time">{{ formatShortTime(coursesByDate[data.day][0].start_time) }}</span>
+                      <span class="c-name">{{ coursesByDate[data.day][0].class_display.split('-')[0] || coursesByDate[data.day][0].class_display }}</span>
+                    </div>
+                  </template>
+
+                  <div class="popover-course-list">
+                    <div class="popover-course-header">
+                      <span>{{ data.day }} 课程安排</span>
+                      <span class="course-count">共 {{ coursesByDate[data.day].length }} 节</span>
+                    </div>
+                    <div 
+                      v-for="course in coursesByDate[data.day]" 
+                      :key="course.id"
+                      class="popover-course-item"
+                    >
+                      <div class="course-status-dot" :class="course.status"></div>
+                      <div class="course-details">
+                        <div class="course-name">{{ course.class_display }}</div>
+                        <div class="course-time-room">
+                          <span><el-icon><Clock /></el-icon>{{ formatShortTime(course.start_time) }} - {{ formatShortTime(course.end_time) }}</span>
+                          <span style="margin-left: 12px;"><el-icon><Location /></el-icon>{{ course.classroom }}</span>
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                </el-tooltip>
-                <div v-if="coursesByDate[data.day].length > 3" class="course-more">
-                  +{{ coursesByDate[data.day].length - 3 }} 更多
-                </div>
+                </el-popover>
               </template>
             </div>
           </div>
@@ -897,17 +922,9 @@ onMounted(async () => {
 
 .course-list {
   flex: 1;
-  overflow-y: auto;
   display: flex;
   flex-direction: column;
   gap: 4px;
-}
-.course-list::-webkit-scrollbar {
-  width: 4px;
-}
-.course-list::-webkit-scrollbar-thumb {
-  background: rgba(0,0,0,0.1);
-  border-radius: 4px;
 }
 
 .course-badge {
@@ -1080,5 +1097,80 @@ onMounted(async () => {
 
 .calendar-cell.is-other-month .course-list {
   pointer-events: none;
+}
+
+.popover-course-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.popover-course-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-weight: bold;
+  color: #303133;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #ebeef5;
+  margin-bottom: 4px;
+}
+
+.popover-course-header .course-count {
+  font-size: 12px;
+  color: #909399;
+  font-weight: normal;
+  background: #f4f4f5;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.popover-course-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.course-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-top: 6px;
+  flex-shrink: 0;
+}
+
+.course-status-dot.not_started {
+  background-color: #909399;
+}
+
+.course-status-dot.in_progress {
+  background-color: #67c23a;
+}
+
+.course-status-dot.ended {
+  background-color: #e6a23c;
+}
+
+.course-details {
+  flex: 1;
+}
+
+.course-details .course-name {
+  font-size: 14px;
+  font-weight: 500;
+  color: #303133;
+  margin-bottom: 4px;
+}
+
+.course-details .course-time-room {
+  font-size: 12px;
+  color: #606266;
+  display: flex;
+  align-items: center;
+}
+
+.course-details .course-time-room .el-icon {
+  margin-right: 4px;
+  vertical-align: text-bottom;
 }
 </style>
