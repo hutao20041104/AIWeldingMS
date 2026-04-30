@@ -106,7 +106,14 @@ def chat_stream(request, session_id: str, payload: ChatRequest):
                     for tc in msg_chunk.tool_call_chunks:
                         if tc.get("name"):
                             tool_name = tc.get("name")
-                            display_name = "学生成绩查询" if tool_name == "query_grade_tool" else tool_name
+                            if tool_name == "query_grade_tool":
+                                display_name = "学生成绩查询"
+                            elif tool_name == "manage_course_tool":
+                                display_name = "课程管理"
+                            elif tool_name == "query_course_tool":
+                                display_name = "课表查询"
+                            else:
+                                display_name = tool_name
                             yield f"data: {json.dumps({'tool_call': f'\n> 🔧 正在调用系统工具：{display_name}...\n\n'})}\n\n"
                             
                 # We only care about AIMessages from the assistant node
