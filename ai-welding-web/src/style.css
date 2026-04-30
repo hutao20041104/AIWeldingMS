@@ -559,79 +559,7 @@ body::after {
   line-height: 1.8;
 }
 
-.assistant-layout {
-  display: grid;
-  grid-template-columns: 280px 1fr;
-  gap: 18px;
-}
 
-.assistant-card {
-  border: 1px solid #e2e8f0 !important;
-  border-radius: 8px !important;
-  background: #ffffff !important;
-  box-shadow: none !important;
-}
-
-.assistant-card .el-card__header {
-  border-bottom: 1px solid #eef3fa;
-  color: #0f172a;
-  font-weight: 600;
-}
-
-.assistant-history {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.assistant-history li {
-  padding: 10px 12px;
-  border-radius: 10px;
-  color: #334155;
-  background: #f1f5f9;
-  font-size: 13px;
-}
-
-.assistant-history li.active {
-  background: #dbeafe;
-  color: #1e3a8a;
-}
-
-.assistant-messages {
-  min-height: 280px;
-  max-height: 360px;
-  overflow: auto;
-  padding-right: 6px;
-  margin-bottom: 14px;
-}
-
-.assistant-message {
-  margin-bottom: 10px;
-  padding: 10px 12px;
-  border-radius: 12px;
-  line-height: 1.65;
-  font-size: 14px;
-}
-
-.assistant-message.assistant {
-  background: #f1f5f9;
-  color: #334155;
-}
-
-.assistant-message.user {
-  background: #dbeafe;
-  color: #1e3a8a;
-}
-
-.assistant-input-actions {
-  margin-top: 10px;
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-}
 
 @media (max-width: 1100px) {
   .module-grid {
