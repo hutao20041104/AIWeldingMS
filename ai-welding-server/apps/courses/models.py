@@ -121,10 +121,12 @@ class TeacherCalendarOverride(models.Model):
     DAY_TYPE_CHOICES = (
         ("work", "工作(班)"),
         ("rest", "休息(休)"),
+        ("default", "默认"),
     )
     teacher = models.ForeignKey(Teacher, on_delete=models.CASCADE, related_name="calendar_overrides", verbose_name="教师")
     date = models.DateField(verbose_name="日期")
-    day_type = models.CharField(max_length=10, choices=DAY_TYPE_CHOICES, verbose_name="类型")
+    day_type = models.CharField(max_length=10, choices=DAY_TYPE_CHOICES, default="default", verbose_name="类型")
+    note = models.TextField(blank=True, null=True, verbose_name="备注")
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="创建时间")
     updated_at = models.DateTimeField(auto_now=True, verbose_name="更新时间")
 

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, nextTick } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Search, Clock, Location } from '@element-plus/icons-vue'
+import { Search, Clock, Location, EditPen, Close } from '@element-plus/icons-vue'
 import { API_BASE_URL } from '../../composables/useAuth'
 import { HolidayUtil, Lunar } from 'lunar-javascript'
 
@@ -516,16 +516,21 @@ onMounted(async () => {
   await Promise.all([fetchOptions(), fetchCourses(), fetchCalendarOverrides()])
 })
 
-const calendarOverrides = ref<Record<string, string>>({})
+const calendarOverrides = ref<Record<string, { day_type: string, note: string }>>({})
+const noteDialogVisible = ref(false)
+const currentNoteDate = ref('')
+const currentNoteText = ref('')
+const dialogTop = ref(0)
+const dialogLeft = ref(0)
 
 async function fetchCalendarOverrides() {
   try {
     const res = await fetch(`${API_BASE_URL}/api/courses/calendar/overrides/`, { headers: { ...authHeaders() } })
     const data = await res.json()
     if (res.ok) {
-      const overrides: Record<string, string> = {}
+      const overrides: Record<string, { day_type: string, note: string }> = {}
       data.forEach((item: any) => {
-        overrides[item.date] = item.day_type
+        overrides[item.date] = { day_type: item.day_type, note: item.note || '' }
       })
       calendarOverrides.value = overrides
     }
@@ -534,24 +539,28 @@ async function fetchCalendarOverrides() {
   }
 }
 
-async function handleOverrideChange(dateString: string, dayType: string) {
+async function handleOverrideChange(dateString: string, dayType: string, note?: string) {
   const parts = dateString.split('-')
   const y = parseInt(parts[0])
   const m = parseInt(parts[1])
   const d = parseInt(parts[2])
   const standardizedDate = `${y}-${m.toString().padStart(2, '0')}-${d.toString().padStart(2, '0')}`
+  
+  const currentOverride = calendarOverrides.value[standardizedDate] || { day_type: 'default', note: '' }
+  const finalDayType = dayType || currentOverride.day_type
+  const finalNote = note !== undefined ? note : currentOverride.note
 
   try {
     const res = await fetch(`${API_BASE_URL}/api/courses/calendar/overrides/`, {
       method: 'POST',
       headers: { ...authHeaders(), 'Content-Type': 'application/json' },
-      body: JSON.stringify({ date: standardizedDate, day_type: dayType })
+      body: JSON.stringify({ date: standardizedDate, day_type: finalDayType, note: finalNote })
     })
     if (res.ok) {
-      if (dayType === 'default') {
+      if (finalDayType === 'default' && !finalNote) {
         delete calendarOverrides.value[standardizedDate]
       } else {
-        calendarOverrides.value[standardizedDate] = dayType
+        calendarOverrides.value[standardizedDate] = { day_type: finalDayType, note: finalNote }
       }
       ElMessage.success('设置成功')
     } else {
@@ -560,6 +569,36 @@ async function handleOverrideChange(dateString: string, dayType: string) {
   } catch (e) {
     ElMessage.error('网络异常，设置失败')
   }
+}
+
+function openNoteDialog(dateString: string, event: MouseEvent) {
+  const parts = dateString.split('-')
+  const y = parseInt(parts[0])
+  const m = parseInt(parts[1])
+  const d = parseInt(parts[2])
+  const standardizedDate = `${y}-${m.toString().padStart(2, '0')}-${d.toString().padStart(2, '0')}`
+  
+  currentNoteDate.value = standardizedDate
+  currentNoteText.value = calendarOverrides.value[standardizedDate]?.note || ''
+  
+  if (event) {
+    let x = event.clientX + 10
+    let y = event.clientY + 10
+    if (x + 340 > window.innerWidth) x = event.clientX - 330
+    if (y + 240 > window.innerHeight) y = event.clientY - 230
+    dialogLeft.value = x
+    dialogTop.value = y
+  } else {
+    dialogLeft.value = window.innerWidth / 2 - 160
+    dialogTop.value = window.innerHeight / 2 - 100
+  }
+  
+  noteDialogVisible.value = true
+}
+
+async function saveNote() {
+  await handleOverrideChange(currentNoteDate.value, '', currentNoteText.value)
+  noteDialogVisible.value = false
 }
 
 function getDayInfo(dateString: string) {
@@ -593,14 +632,15 @@ function getDayInfo(dateString: string) {
     }
   }
   
-  const overrideType = calendarOverrides.value[standardizedDate]
-  const finalType = overrideType || defaultType
+  const overrideData = calendarOverrides.value[standardizedDate]
+  const finalType = (overrideData && overrideData.day_type !== 'default') ? overrideData.day_type : defaultType
   
   return {
     isRest: finalType === 'rest',
     holidayName,
-    hasOverride: !!overrideType,
-    isWeekend
+    hasOverride: !!overrideData && overrideData.day_type !== 'default',
+    isWeekend,
+    note: overrideData?.note || ''
   }
 }
 </script>
@@ -680,7 +720,7 @@ function getDayInfo(dateString: string) {
               </template>
 
               <template #date-cell="{ data }">
-                <div class="calendar-cell" :class="{ 'is-other-month': data.type !== 'current-month' }">
+                <div class="calendar-cell" :class="{ 'is-other-month': data.type !== 'current-month' }" @dblclick="openNoteDialog(data.day, $event)">
                   <div class="date-header-wrap">
                     <span class="date-num" :class="{ 'is-today': data.type === 'today' || data.day === new Date().toISOString().split('T')[0] }">{{ data.day.split('-').pop() }}</span>
                     <div class="date-info-wrap">
@@ -733,8 +773,16 @@ function getDayInfo(dateString: string) {
                         </div>
                       </div>
                     </div>
+                    <div v-if="getDayInfo(data.day).note" class="popover-note">
+                      <el-icon><EditPen /></el-icon> {{ getDayInfo(data.day).note }}
+                    </div>
                   </div>
                 </el-popover>
+              </template>
+              <template v-else-if="getDayInfo(data.day).note">
+                <div class="cell-note" :title="getDayInfo(data.day).note">
+                  <span class="note-text">{{ getDayInfo(data.day).note }}</span>
+                </div>
               </template>
             </div>
           </div>
@@ -745,6 +793,30 @@ function getDayInfo(dateString: string) {
         </el-tab-pane>
       </el-tabs>
     </el-card>
+
+    <div v-if="noteDialogVisible" class="floating-note-dialog glass-card" :style="{ top: dialogTop + 'px', left: dialogLeft + 'px' }">
+      <div class="dialog-header-custom" style="margin-bottom: 12px; font-size: 16px;">
+        <el-icon><EditPen /></el-icon>
+        <span>为 {{ currentNoteDate }} 备注</span>
+        <el-button link type="info" style="margin-left: auto; font-size: 18px;" @click="noteDialogVisible = false">
+           <el-icon><Close /></el-icon>
+        </el-button>
+      </div>
+      <div class="note-input-wrap" style="margin-top: 0;">
+        <el-input 
+          v-model="currentNoteText" 
+          type="textarea" 
+          :rows="4" 
+          placeholder="按 Enter 快速保存，Shift+Enter 换行" 
+          @keydown.enter.exact.prevent="saveNote"
+          resize="none"
+        />
+      </div>
+      <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 12px;">
+        <el-button size="small" @click="noteDialogVisible = false" round>取消</el-button>
+        <el-button size="small" type="primary" class="gradient-btn" @click="saveNote" round>保存备注</el-button>
+      </div>
+    </div>
 
     <el-dialog v-model="dialogVisible" :title="editingCourseId ? '编辑课程' : '添加课程'" width="980px" class="custom-glass-dialog" top="12vh">
       <el-form label-width="120px">
@@ -931,8 +1003,7 @@ function getDayInfo(dateString: string) {
   flex-direction: column;
   gap: 16px;
   padding: 16px;
-  background: linear-gradient(135deg, #f0f4f8 0%, #e2eafc 100%);
-  height: calc(100vh - 64px);
+  height: calc(100vh - 80px);
   box-sizing: border-box;
   overflow: hidden;
 }
@@ -1026,6 +1097,11 @@ function getDayInfo(dateString: string) {
   border-bottom: 1px dashed rgba(0, 0, 0, 0.08);
   padding: 12px 16px;
 }
+
+:deep(.el-calendar__body) {
+  padding-bottom: 12px;
+}
+
 :deep(.el-calendar-table .el-calendar-day) {
   height: 64px;
   padding: 4px;
@@ -1372,5 +1448,81 @@ function getDayInfo(dateString: string) {
 .day-badge.has-override {
   box-shadow: 0 0 0 1px currentColor inset;
   border-style: dashed;
+}
+
+.cell-note {
+  font-size: 12px;
+  color: #e6a23c;
+  background: #fdf6ec;
+  border-radius: 4px;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px;
+}
+.cell-note .note-text {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+  text-align: center;
+  line-height: 1.4;
+  word-break: break-all;
+}
+
+.floating-note-dialog {
+  position: fixed;
+  z-index: 9999;
+  width: 320px;
+  padding: 16px;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.15), 0 2px 10px rgba(0,0,0,0.05);
+  border: 1px solid rgba(255,255,255,0.6);
+}
+
+.dialog-header-custom {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 18px;
+  font-weight: 600;
+  color: #303133;
+}
+.dialog-header-custom .el-icon {
+  color: #409eff;
+  font-size: 22px;
+}
+.note-input-wrap {
+  margin-top: -10px;
+}
+:deep(.note-input-wrap .el-textarea__inner) {
+  border-radius: 8px;
+  background: rgba(245,247,250,0.8);
+  box-shadow: 0 0 0 1px #dcdfe6 inset;
+  padding: 12px;
+  font-size: 14px;
+  transition: all 0.3s;
+}
+:deep(.note-input-wrap .el-textarea__inner:focus) {
+  background: #ffffff;
+  box-shadow: 0 0 0 1px #409eff inset;
+}
+
+.popover-note {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed #ebeef5;
+  font-size: 12px;
+  color: #606266;
+  line-height: 1.4;
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+}
+.popover-note .el-icon {
+  margin-top: 2px;
+  color: #909399;
 }
 </style>

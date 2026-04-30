@@ -744,10 +744,12 @@ def list_student_grade_history(request, student_id: str):
 class CalendarOverrideIn(Schema):
     date: str
     day_type: str
+    note: Optional[str] = None
 
 class CalendarOverrideOut(Schema):
     date: str
     day_type: str
+    note: Optional[str] = None
 
 @router.get("/calendar/overrides/", auth=JWTAuth(), response={200: list[CalendarOverrideOut], 403: dict})
 def list_calendar_overrides(request):
@@ -756,7 +758,7 @@ def list_calendar_overrides(request):
         return 403, {"message": "权限不足"}
     
     overrides = TeacherCalendarOverride.objects.filter(teacher=teacher)
-    return [{"date": str(o.date), "day_type": o.day_type} for o in overrides]
+    return [{"date": str(o.date), "day_type": o.day_type, "note": o.note} for o in overrides]
 
 @router.post("/calendar/overrides/", auth=JWTAuth(), response={200: dict, 400: dict, 403: dict})
 def set_calendar_override(request, payload: CalendarOverrideIn):
@@ -769,16 +771,17 @@ def set_calendar_override(request, payload: CalendarOverrideIn):
     except ValueError:
         return 400, {"message": "日期格式错误"}
         
-    if payload.day_type == "default":
+    if payload.day_type == "default" and not payload.note:
         TeacherCalendarOverride.objects.filter(teacher=teacher, date=dt).delete()
         return {"message": "恢复默认成功"}
         
-    if payload.day_type not in ["work", "rest"]:
+    if payload.day_type not in ["work", "rest", "default"]:
         return 400, {"message": "类型错误"}
         
     TeacherCalendarOverride.objects.update_or_create(
         teacher=teacher,
         date=dt,
-        defaults={"day_type": payload.day_type}
+        defaults={"day_type": payload.day_type, "note": payload.note or ""}
     )
     return {"message": "保存成功"}
+
