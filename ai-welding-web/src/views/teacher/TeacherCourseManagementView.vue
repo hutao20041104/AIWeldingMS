@@ -172,6 +172,7 @@ function toDatetimeLocal(value?: string) {
 
 const startTimePickerRef = ref()
 const endTimePickerRef = ref()
+const calendarRef = ref()
 
 const startDate = computed({
   get: () => form.value.start_time ? form.value.start_time.split('T')[0] : '',
@@ -475,8 +476,8 @@ async function saveCourse() {
   try {
     const payload = {
       classroom: form.value.classroom,
-      start_time: form.value.start_time,
-      end_time: form.value.end_time,
+      start_time: new Date(form.value.start_time).toISOString(),
+      end_time: new Date(form.value.end_time).toISOString(),
       student_ids: form.value.student_ids,
       assistant_student_id: form.value.assistant_student_id || null,
     }
@@ -573,12 +574,20 @@ onMounted(async () => {
         <!-- 日历视图 -->
         <el-tab-pane label="教学日历" name="course-calendar">
           <div class="calendar-wrapper">
-            <el-calendar>
+            <el-calendar ref="calendarRef">
+              <template #header="{ date }">
+                <div style="display: flex; align-items: center; justify-content: center; width: 100%; position: relative;">
+                  <el-button type="text" @click="calendarRef?.selectDate('prev-month')" style="font-size: 18px; padding: 4px 8px; color: #606266;">&lt;</el-button>
+                  <span style="font-size: 16px; font-weight: 600; margin: 0 24px; color: #303133;">{{ date }}</span>
+                  <el-button type="text" @click="calendarRef?.selectDate('next-month')" style="font-size: 18px; padding: 4px 8px; color: #606266;">&gt;</el-button>
+                  <el-button type="primary" plain size="small" @click="calendarRef?.selectDate('today')" style="position: absolute; right: 0;">今天</el-button>
+                </div>
+              </template>
 
-        <template #date-cell="{ data }">
-          <div class="calendar-cell">
-            <span class="date-num" :class="{ 'is-today': data.type === 'today' }">{{ data.day.split('-').pop() }}</span>
-            <div class="course-list">
+              <template #date-cell="{ data }">
+                <div class="calendar-cell" :class="{ 'is-other-month': data.type !== 'current-month' }">
+                  <span class="date-num" :class="{ 'is-today': data.type === 'today' || data.day === new Date().toISOString().split('T')[0] }">{{ data.day.split('-').pop() }}</span>
+                  <div class="course-list">
               <template v-if="coursesByDate[data.day]">
                 <el-tooltip
                   v-for="course in coursesByDate[data.day].slice(0, 3)"
@@ -1062,5 +1071,14 @@ onMounted(async () => {
 :deep(.custom-glass-dialog .el-dialog__title) {
   font-weight: 600;
   color: #303133;
+}
+
+.calendar-cell.is-other-month {
+  opacity: 0.3;
+  background-color: #fafafa;
+}
+
+.calendar-cell.is-other-month .course-list {
+  pointer-events: none;
 }
 </style>

@@ -2,6 +2,8 @@
 import { onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { currentUser, useAuth } from './composables/useAuth'
+import { ElConfigProvider } from 'element-plus'
+import zhCn from 'element-plus/es/locale/lang/zh-cn'
 
 const route = useRoute()
 const router = useRouter()
@@ -31,7 +33,8 @@ async function handleLogout() {
 </script>
 
 <template>
-  <template v-if="route.meta.layout === 'dashboard'">
+  <el-config-provider :locale="zhCn">
+    <template v-if="route.meta.layout === 'dashboard'">
     <p v-if="booting" class="dashboard-booting">正在加载系统页面…</p>
     <router-view v-else />
   </template>
@@ -71,4 +74,5 @@ async function handleLogout() {
       <p v-if="message" :class="['feedback', { error: isError }]">{{ message }}</p>
     </section>
   </main>
+  </el-config-provider>
 </template>
