@@ -334,17 +334,28 @@ body::after {
 .teacher-top-center-title {
   margin: 0;
   position: absolute;
-  top: 2px;
-  left: calc(50% - 106px);
-  transform: translateX(-50%);
-  font-size: clamp(26px, 2.6vw, 42px);
-  font-weight: 700;
-  color: #ffffff;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: clamp(24px, 2.5vw, 30px);
+  font-family: 'Rajdhani', 'Orbitron', 'Space Grotesk', 'Exo 2', -apple-system, sans-serif;
+  font-weight: 900;
+  letter-spacing: 6px;
+  
+  /* Metallic Tech Gradient */
+  background: linear-gradient(180deg, #ffffff 0%, #a5f3fc 50%, #0284c7 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  
+  /* Cyber glow */
+  filter: drop-shadow(0 0 10px rgba(14, 165, 233, 0.8)) drop-shadow(0 4px 4px rgba(0, 0, 0, 0.3));
+  
   text-align: center;
   width: max-content;
   max-width: calc(100% - 360px);
-  text-shadow: 0 6px 18px rgba(15, 23, 42, 0.45);
   pointer-events: none;
+  text-transform: uppercase;
 }
 
 .teacher-brand-inline {
@@ -599,9 +610,7 @@ body::after {
     position: static;
     transform: none;
     max-width: 100%;
-    font-size: 24px;
-    color: #0f172a;
-    text-shadow: none;
+    font-size: 20px;
     margin-bottom: 4px;
   }
 
