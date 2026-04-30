@@ -410,26 +410,68 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 16px;
-  padding: 16px;
-  height: calc(100vh - 80px);
+  padding: 24px;
+  height: calc(100vh - 92px);
   box-sizing: border-box;
   overflow: hidden;
+  background-color: #f8fafc;
+  background-image: 
+    radial-gradient(at 40% 20%, hsla(210,100%,93%,1) 0px, transparent 50%),
+    radial-gradient(at 80% 0%, hsla(189,100%,96%,1) 0px, transparent 50%),
+    radial-gradient(at 0% 50%, hsla(355,100%,93%,1) 0px, transparent 50%),
+    radial-gradient(at 80% 50%, hsla(340,100%,96%,1) 0px, transparent 50%),
+    radial-gradient(at 0% 100%, hsla(22,100%,92%,1) 0px, transparent 50%),
+    radial-gradient(at 80% 100%, hsla(242,100%,96%,1) 0px, transparent 50%),
+    radial-gradient(at 0% 0%, hsla(343,100%,96%,1) 0px, transparent 50%);
+  background-size: 200% 200%;
+  animation: mesh-movement 20s ease-in-out infinite alternate;
+  border-radius: 24px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.04);
+}
+
+@keyframes mesh-movement {
+  0% { background-position: 0% 0%; }
+  100% { background-position: 100% 100%; }
+}
+
+@keyframes slideUpFade {
+  from { opacity: 0; transform: translateY(30px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 .glass-card {
-  background: rgba(255, 255, 255, 0.85);
-  backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.4);
-  border-radius: 16px;
-  box-shadow: 0 8px 32px rgba(31, 38, 135, 0.05);
-  transition: all 0.3s ease;
+  background: rgba(255, 255, 255, 0.65);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  border-radius: 24px;
+  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.05), inset 0 0 0 1px rgba(255,255,255,0.5);
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
   flex: 1;
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  position: relative;
+  animation: slideUpFade 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
+
+.glass-card::before {
+  content: '';
+  position: absolute;
+  top: -50%; left: -50%; width: 200%; height: 200%;
+  background: conic-gradient(transparent, transparent, transparent, rgba(79, 70, 229, 0.1), transparent);
+  animation: rotate-glow 8s linear infinite;
+  pointer-events: none;
+  z-index: -1;
+}
+
+@keyframes rotate-glow {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
 .glass-card:hover {
-  box-shadow: 0 12px 40px rgba(31, 38, 135, 0.1);
+  box-shadow: 0 16px 48px 0 rgba(31, 38, 135, 0.08), inset 0 0 0 1px rgba(255,255,255,0.8);
 }
 
 :deep(.el-card__body) {
@@ -437,7 +479,7 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  padding: 16px 20px;
+  padding: 20px 24px;
 }
 
 :deep(.custom-tabs) {
@@ -487,12 +529,16 @@ onMounted(() => {
   font-size: 18px;
 }
 .section-title {
-  font-size: 18px;
-  font-weight: 600;
-  color: #303133;
+  font-size: 20px;
+  font-weight: 800;
   margin: 0;
   position: relative;
   white-space: nowrap;
+  background: linear-gradient(135deg, #0f172a 0%, #4f46e5 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  display: inline-block;
+  letter-spacing: -0.5px;
 }
 .section-title::after {
   content: '';
@@ -544,22 +590,32 @@ onMounted(() => {
 
 .module-table-wrap {
   flex: 1;
-  border-radius: 8px;
+  border-radius: 16px;
   overflow: hidden;
-  border: 1px solid #ebeef5;
+  background: rgba(255, 255, 255, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.3);
   display: flex;
   flex-direction: column;
 }
 :deep(.el-table) {
   height: 100% !important;
+  background: transparent;
 }
 :deep(.custom-table) {
-  --el-table-border-color: #ebeef5;
-  --el-table-header-bg-color: #f8f9fb;
+  --el-table-border-color: rgba(255, 255, 255, 0.4);
+  --el-table-header-bg-color: rgba(255, 255, 255, 0.6);
+  --el-table-tr-bg-color: transparent;
+  --el-table-row-hover-bg-color: rgba(255, 255, 255, 0.5);
+  background: transparent;
 }
 :deep(.custom-table-header th) {
-  color: #606266;
-  font-weight: 600;
+  color: #334155;
+  font-weight: 700;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.6);
+}
+:deep(.el-table td.el-table__cell) {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.3);
 }
 
 .module-pagination {
