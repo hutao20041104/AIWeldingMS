@@ -147,14 +147,6 @@ def _status_of(course: Course) -> str:
 
 
 def _class_display_of(course: Course) -> str:
-    majors = list(
-        course.students.exclude(major__exact="")
-        .order_by("major")
-        .values_list("major", flat=True)
-        .distinct()
-    )
-    if majors:
-        return "、".join(majors)
     class_names = list(
         course.students.exclude(class_name__exact="")
         .order_by("class_name")

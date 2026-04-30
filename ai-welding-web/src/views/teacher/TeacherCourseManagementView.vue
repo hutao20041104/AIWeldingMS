@@ -239,7 +239,7 @@ function handleStartTimeChange(value: string | null) {
 async function fetchCourses() {
   loading.value = true
   try {
-    const res = await fetch(`${API_BASE_URL}/api/courses/`, { headers: { ...authHeaders() } })
+    const res = await fetch(`${API_BASE_URL}/api/courses/?_t=${Date.now()}`, { headers: { ...authHeaders() } })
     const data = await res.json()
     if (!res.ok) {
       ElMessage.error(data.message || '获取课程失败')
@@ -266,7 +266,7 @@ async function fetchGroupingDetail() {
   if (!groupingCourseId.value) return
   groupingLoading.value = true
   try {
-    const res = await fetch(`${API_BASE_URL}/api/courses/${groupingCourseId.value}/grouping/`, {
+    const res = await fetch(`${API_BASE_URL}/api/courses/${groupingCourseId.value}/grouping/?_t=${Date.now()}`, {
       headers: { ...authHeaders() },
     })
     const data = await res.json()
@@ -333,7 +333,7 @@ async function saveGrouping() {
 
 async function fetchOptions() {
   try {
-    const res = await fetch(`${API_BASE_URL}/api/courses/options/`, { headers: { ...authHeaders() } })
+    const res = await fetch(`${API_BASE_URL}/api/courses/options/?_t=${Date.now()}`, { headers: { ...authHeaders() } })
     const data = await res.json()
     if (!res.ok) {
       ElMessage.error(data.message || '获取课程配置失败')
@@ -354,7 +354,7 @@ async function fetchStudents() {
     if (studentFilters.value.major_code) params.set('major_code', studentFilters.value.major_code)
     if (studentFilters.value.class_code) params.set('class_code', studentFilters.value.class_code)
     if (studentFilters.value.name.trim()) params.set('name', studentFilters.value.name.trim())
-    const suffix = params.toString() ? `?${params.toString()}` : ''
+    const suffix = params.toString() ? `?${params.toString()}&_t=${Date.now()}` : `?_t=${Date.now()}`
     const res = await fetch(`${API_BASE_URL}/api/courses/students/${suffix}`, { headers: { ...authHeaders() } })
     const data = await res.json()
     if (!res.ok) {
@@ -371,7 +371,7 @@ async function fetchStudents() {
 
 async function fetchNextCourseCode() {
   try {
-    const res = await fetch(`${API_BASE_URL}/api/courses/next-code/`, { headers: { ...authHeaders() } })
+    const res = await fetch(`${API_BASE_URL}/api/courses/next-code/?_t=${Date.now()}`, { headers: { ...authHeaders() } })
     const data = await res.json()
     if (!res.ok) {
       ElMessage.error(data.message || '获取课程编号失败')
@@ -419,7 +419,7 @@ async function openEditDialog(row: CourseRow) {
   editingCourseId.value = row.id
   autoCourseCode.value = row.course_code
   try {
-    const res = await fetch(`${API_BASE_URL}/api/courses/${row.id}/`, { headers: { ...authHeaders() } })
+    const res = await fetch(`${API_BASE_URL}/api/courses/${row.id}/?_t=${Date.now()}`, { headers: { ...authHeaders() } })
     const data = await res.json()
     if (!res.ok) {
       ElMessage.error(data.message || '获取课程详情失败')
@@ -527,7 +527,7 @@ const dialogLeft = ref(0)
 
 async function fetchCalendarOverrides() {
   try {
-    const res = await fetch(`${API_BASE_URL}/api/courses/calendar/overrides/`, { headers: { ...authHeaders() } })
+    const res = await fetch(`${API_BASE_URL}/api/courses/calendar/overrides/?_t=${Date.now()}`, { headers: { ...authHeaders() } })
     const data = await res.json()
     if (res.ok) {
       const overrides: Record<string, { day_type: string, note: string }> = {}
@@ -662,7 +662,7 @@ function getDayInfo(dateString: string) {
           <h2 class="section-title">课程列表详情</h2>
         </div>
         <div class="toolbar-actions">
-          <el-input v-model="keyword" placeholder="搜索课程编号/地点/班级(专业)" clearable class="module-search" :prefix-icon="Search" />
+          <el-input v-model="keyword" placeholder="搜索课程编号/地点/班级" clearable class="module-search" :prefix-icon="Search" />
           <el-button type="primary" class="gradient-btn" @click="openCreateDialog">添加课程</el-button>
         </div>
       </div>
@@ -670,7 +670,7 @@ function getDayInfo(dateString: string) {
         <el-table :data="pagedTableData" border v-loading="loading" class="custom-table" header-cell-class-name="custom-table-header">
           <el-table-column prop="course_code" label="课程编号" min-width="180" align="center" />
           <el-table-column prop="classroom" label="地点" min-width="120" align="center" />
-          <el-table-column prop="class_display" label="班级(专业)" min-width="200" align="center" />
+          <el-table-column prop="class_display" label="班级" min-width="200" align="center" />
           <el-table-column prop="status_label" label="状态" width="100" align="center">
             <template #default="{ row }">
               <el-tag :type="row.status === 'in_progress' ? 'success' : row.status === 'not_started' ? 'info' : 'warning'" effect="light">
@@ -851,6 +851,7 @@ function getDayInfo(dateString: string) {
               height="200"
               v-loading="studentsLoading"
             >
+              >
               <el-table-column width="100" align="center">
                 <template #header>
                   <span>选择 ({{ form.student_ids.length }})</span>
@@ -875,6 +876,9 @@ function getDayInfo(dateString: string) {
               <el-table-column prop="username" label="姓名" min-width="120" />
               <el-table-column prop="major" label="专业" min-width="140" />
               <el-table-column prop="class_name" label="班级" min-width="140" />
+              <template #empty>
+                <el-empty description="请在学生管理模块中录入学生信息" :image-size="60" />
+              </template>
             </el-table>
           </div>
         </el-form-item>
@@ -907,7 +911,8 @@ function getDayInfo(dateString: string) {
         <el-form-item label="设备展示">
           <el-table :data="selectedClassroomDevicesPairs" border height="136" style="width: 100%">
             <template #empty>
-              <span style="color: #909399;">{{ form.classroom ? '该教室暂无设备' : '请先选择教室' }}</span>
+              <div v-if="!form.classroom" style="padding: 20px 0; color: #909399; text-align: center;">请先选择教室</div>
+              <div v-else style="padding: 20px 0; color: #909399; text-align: center;">暂无可用设备</div>
             </template>
             <el-table-column label="设备编号" min-width="140">
               <template #default="{ row }">{{ row.dev1?.device_code }}</template>
