@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, nextTick } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Search, Clock, Location, EditPen, Close } from '@element-plus/icons-vue'
+import { Search, Clock, Location, EditPen, Close, Tickets } from '@element-plus/icons-vue'
 import { API_BASE_URL } from '../../composables/useAuth'
 import { HolidayUtil, Lunar } from 'lunar-javascript'
 
@@ -653,7 +653,12 @@ function getDayInfo(dateString: string) {
         <el-tab-pane label="课程列表" name="course-list">
 
       <div class="module-toolbar">
-        <h2 class="section-title">课程列表详情</h2>
+        <div class="section-title-wrap">
+          <div class="title-icon-box">
+            <el-icon><Tickets /></el-icon>
+          </div>
+          <h2 class="section-title">课程列表详情</h2>
+        </div>
         <div class="toolbar-actions">
           <el-input v-model="keyword" placeholder="搜索课程编号/地点/班级(专业)" clearable class="module-search" :prefix-icon="Search" />
           <el-button type="primary" class="gradient-btn" @click="openCreateDialog">添加课程</el-button>
@@ -661,10 +666,10 @@ function getDayInfo(dateString: string) {
       </div>
       <div class="module-table-wrap">
         <el-table :data="pagedTableData" border v-loading="loading" class="custom-table" header-cell-class-name="custom-table-header">
-          <el-table-column prop="course_code" label="课程编号" min-width="180" />
-          <el-table-column prop="classroom" label="地点" min-width="120" />
-          <el-table-column prop="class_display" label="班级(专业)" min-width="200" />
-          <el-table-column prop="status_label" label="状态" width="100">
+          <el-table-column prop="course_code" label="课程编号" min-width="180" align="center" />
+          <el-table-column prop="classroom" label="地点" min-width="120" align="center" />
+          <el-table-column prop="class_display" label="班级(专业)" min-width="200" align="center" />
+          <el-table-column prop="status_label" label="状态" width="100" align="center">
             <template #default="{ row }">
               <el-tag :type="row.status === 'in_progress' ? 'success' : row.status === 'not_started' ? 'info' : 'warning'" effect="light">
                 {{ row.status_label }}
@@ -676,7 +681,7 @@ function getDayInfo(dateString: string) {
               <span class="number-cell">{{ row.student_count }}</span>
             </template>
           </el-table-column>
-          <el-table-column label="上课时间" min-width="300">
+          <el-table-column label="上课时间" min-width="300" align="center">
             <template #default="{ row }">
               <div class="time-cell">
                 <span class="time-label">{{ formatTime(row.start_time) }}</span>
@@ -685,7 +690,7 @@ function getDayInfo(dateString: string) {
               </div>
             </template>
           </el-table-column>
-          <el-table-column label="操作" width="200" fixed="right">
+          <el-table-column label="操作" width="200" fixed="right" align="center">
             <template #default="{ row }">
               <el-button link type="primary" :disabled="row.status !== 'not_started'" @click="openEditDialog(row)">编辑</el-button>
               <el-button link type="primary" @click="openGroupingDialog(row)">设备分配</el-button>
@@ -1201,7 +1206,25 @@ function getDayInfo(dateString: string) {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 12px;
+  margin-bottom: 16px;
+  padding: 0 4px;
+}
+.section-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.title-icon-box {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #409eff 0%, #3a8ee6 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 18px;
+  box-shadow: 0 4px 10px rgba(64, 158, 255, 0.3);
 }
 .section-title {
   margin: 0;
@@ -1209,6 +1232,17 @@ function getDayInfo(dateString: string) {
   font-weight: 600;
   color: #303133;
   letter-spacing: 0.5px;
+  position: relative;
+}
+.section-title::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: -4px;
+  width: 24px;
+  height: 3px;
+  background: #409eff;
+  border-radius: 2px;
 }
 .toolbar-actions {
   display: flex;
@@ -1263,6 +1297,7 @@ function getDayInfo(dateString: string) {
 .time-cell {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 6px;
   white-space: nowrap;
 }
