@@ -42,6 +42,7 @@ type ClassroomOption = {
 type MajorOption = { name: string; code: string }
 type ClassOption = { name: string; code: string; major_code: string }
 
+const activeTab = ref('course-list')
 const loading = ref(false)
 const saving = ref(false)
 const studentsLoading = ref(false)
@@ -441,37 +442,11 @@ onMounted(async () => {
 
 <template>
   <section class="course-management-page">
-    <!-- 日历视图 -->
-    <el-card class="glass-card calendar-card" shadow="never" v-loading="loading">
-      <el-calendar>
-        <template #date-cell="{ data }">
-          <div class="calendar-cell">
-            <span class="date-num" :class="{ 'is-today': data.type === 'today' }">{{ data.day.split('-').pop() }}</span>
-            <div class="course-list">
-              <template v-if="coursesByDate[data.day]">
-                <el-tooltip
-                  v-for="course in coursesByDate[data.day].slice(0, 3)"
-                  :key="course.id"
-                  :content="`${formatShortTime(course.start_time)} - ${course.classroom} - ${course.class_display}`"
-                  placement="top"
-                >
-                  <div class="course-badge" :class="course.status">
-                    <span class="c-time">{{ formatShortTime(course.start_time) }}</span>
-                    <span class="c-name">{{ course.class_display.split('-')[0] || course.class_display }}</span>
-                  </div>
-                </el-tooltip>
-                <div v-if="coursesByDate[data.day].length > 3" class="course-more">
-                  +{{ coursesByDate[data.day].length - 3 }} 更多
-                </div>
-              </template>
-            </div>
-          </div>
-        </template>
-      </el-calendar>
-    </el-card>
+    <el-card class="glass-card module-table-card" shadow="never" v-loading="loading">
+      <el-tabs v-model="activeTab" class="custom-tabs">
+        <!-- 列表视图 -->
+        <el-tab-pane label="课程列表" name="course-list">
 
-    <!-- 列表视图 -->
-    <el-card class="glass-card list-card" shadow="never">
       <div class="module-toolbar">
         <h2 class="section-title">课程列表详情</h2>
         <div class="toolbar-actions">
@@ -523,6 +498,42 @@ onMounted(async () => {
           background
         />
       </div>
+    
+        </el-tab-pane>
+
+        <!-- 日历视图 -->
+        <el-tab-pane label="教学日历" name="course-calendar">
+          <div class="calendar-wrapper">
+            <el-calendar>
+
+        <template #date-cell="{ data }">
+          <div class="calendar-cell">
+            <span class="date-num" :class="{ 'is-today': data.type === 'today' }">{{ data.day.split('-').pop() }}</span>
+            <div class="course-list">
+              <template v-if="coursesByDate[data.day]">
+                <el-tooltip
+                  v-for="course in coursesByDate[data.day].slice(0, 3)"
+                  :key="course.id"
+                  :content="`${formatShortTime(course.start_time)} - ${course.classroom} - ${course.class_display}`"
+                  placement="top"
+                >
+                  <div class="course-badge" :class="course.status">
+                    <span class="c-time">{{ formatShortTime(course.start_time) }}</span>
+                    <span class="c-name">{{ course.class_display.split('-')[0] || course.class_display }}</span>
+                  </div>
+                </el-tooltip>
+                <div v-if="coursesByDate[data.day].length > 3" class="course-more">
+                  +{{ coursesByDate[data.day].length - 3 }} 更多
+                </div>
+              </template>
+            </div>
+          </div>
+        </template>
+      
+            </el-calendar>
+          </div>
+        </el-tab-pane>
+      </el-tabs>
     </el-card>
 
     <el-dialog v-model="dialogVisible" :title="editingCourseId ? '编辑课程' : '添加课程'" width="980px">
@@ -668,16 +679,43 @@ onMounted(async () => {
   border-radius: 16px;
   box-shadow: 0 8px 32px rgba(31, 38, 135, 0.05);
   transition: all 0.3s ease;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 .glass-card:hover {
   box-shadow: 0 12px 40px rgba(31, 38, 135, 0.1);
 }
 
-/* Calendar Styles */
-.calendar-card {
-  padding: 0;
+:deep(.el-card__body) {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
-  flex-shrink: 0;
+  padding: 16px 20px;
+}
+
+:deep(.custom-tabs) {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+:deep(.el-tabs__content) {
+  flex: 1;
+  overflow: hidden;
+}
+:deep(.el-tab-pane) {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.calendar-wrapper {
+  flex: 1;
+  overflow-y: auto;
 }
 :deep(.el-calendar) {
   background: transparent;
@@ -786,14 +824,7 @@ onMounted(async () => {
   margin-top: 2px;
 }
 
-/* List Card Styles */
-.list-card {
-  padding: 16px;
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
+
 .module-toolbar {
   display: flex;
   justify-content: space-between;
