@@ -80,6 +80,7 @@ const groupingLoading = ref(false)
 const groupingSaving = ref(false)
 const groupingCourseId = ref<number | null>(null)
 const groupingCourseCode = ref('')
+const groupingCourseStatus = ref('')
 const groupingStudents = ref<Array<{ id: string; identity_code: string; username: string; major: string; class_name: string; device_id?: number | null }>>([])
 const groupingDevices = ref<DeviceOption[]>([])
 
@@ -256,6 +257,7 @@ async function fetchCourses() {
 async function openGroupingDialog(row: CourseRow) {
   groupingCourseId.value = row.id
   groupingCourseCode.value = row.course_code
+  groupingCourseStatus.value = row.status
   groupingDialogVisible.value = true
   await fetchGroupingDetail()
 }
@@ -978,7 +980,7 @@ function getDayInfo(dateString: string) {
 
     <el-dialog v-model="groupingDialogVisible" title="课程分组" width="960px" class="custom-glass-dialog" top="12vh">
       <div style="margin-bottom: 12px">课程编号：{{ groupingCourseCode }}</div>
-      <div style="margin-bottom: 12px">
+      <div style="margin-bottom: 12px" v-if="groupingCourseStatus !== 'ended'">
         <el-button type="primary" :loading="groupingSaving" @click="runRandomGrouping">随机分组</el-button>
       </div>
       <el-table :data="groupingStudents" border v-loading="groupingLoading">
@@ -988,15 +990,15 @@ function getDayInfo(dateString: string) {
         <el-table-column prop="class_name" label="班级" min-width="140" />
         <el-table-column label="分配设备" min-width="220">
           <template #default="{ row }">
-            <el-select v-model="row.device_id" placeholder="选择设备" style="width: 200px">
+            <el-select v-model="row.device_id" placeholder="选择设备" style="width: 200px" :disabled="groupingCourseStatus === 'ended'">
               <el-option v-for="d in groupingDevices" :key="d.id" :label="`${d.device_code}(${d.status_label})`" :value="d.id" />
             </el-select>
           </template>
         </el-table-column>
       </el-table>
       <template #footer>
-        <el-button @click="groupingDialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="groupingSaving" @click="saveGrouping">保存分组</el-button>
+        <el-button @click="groupingDialogVisible = false">{{ groupingCourseStatus === 'ended' ? '关闭' : '取消' }}</el-button>
+        <el-button v-if="groupingCourseStatus !== 'ended'" type="primary" :loading="groupingSaving" @click="saveGrouping">保存分组</el-button>
       </template>
     </el-dialog>
   </section>
