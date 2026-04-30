@@ -110,6 +110,20 @@ function resetFilters() {
   fetchStudents()
 }
 
+function onMajorChange(val: string) {
+  if (val) {
+    filters.value.class_code = ''
+  }
+  fetchStudents()
+}
+
+function onClassChange(val: string) {
+  if (val) {
+    filters.value.major_code = ''
+  }
+  fetchStudents()
+}
+
 async function handleImportStudents(uploadFile: { raw?: File }) {
   const rawFile = uploadFile.raw
   if (!rawFile) return
@@ -268,12 +282,12 @@ onMounted(() => {
               <h2 class="section-title">学生档案库</h2>
             </div>
             <div class="toolbar-actions">
-              <el-input v-model="filters.identity_code" placeholder="按学号筛选" clearable class="module-search search-input" :prefix-icon="Search" />
-              <el-input v-model="filters.name" placeholder="按姓名筛选" clearable class="module-search search-input" :prefix-icon="Search" />
-              <el-select v-model="filters.major_code" placeholder="按专业筛选" clearable class="module-search search-input">
+              <el-input v-model="filters.identity_code" placeholder="按学号筛选" clearable class="module-search search-input" :prefix-icon="Search" @keyup.enter="fetchStudents" />
+              <el-input v-model="filters.name" placeholder="按姓名筛选" clearable class="module-search search-input" :prefix-icon="Search" @keyup.enter="fetchStudents" />
+              <el-select v-model="filters.major_code" placeholder="按专业筛选" clearable class="module-search search-input" @change="onMajorChange">
                 <el-option v-for="item in majors" :key="item.code" :label="item.name" :value="item.code" />
               </el-select>
-              <el-select v-model="filters.class_code" placeholder="按班级筛选" clearable class="module-search search-input">
+              <el-select v-model="filters.class_code" placeholder="按班级筛选" clearable class="module-search search-input" @change="onClassChange">
                 <el-option v-for="item in classes" :key="item.code" :label="item.name" :value="item.code" />
               </el-select>
               <el-button @click="resetFilters" :disabled="!hasFilters" :icon="Refresh" plain>重置</el-button>
@@ -459,6 +473,7 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 12px;
+  flex-shrink: 0;
 }
 .title-icon-box {
   width: 32px;
@@ -477,6 +492,7 @@ onMounted(() => {
   color: #303133;
   margin: 0;
   position: relative;
+  white-space: nowrap;
 }
 .section-title::after {
   content: '';
@@ -492,18 +508,20 @@ onMounted(() => {
 .toolbar-actions {
   display: flex;
   align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
+  gap: 10px;
+  flex-wrap: nowrap;
+  overflow-x: auto;
 }
 .divider {
   width: 1px;
   height: 24px;
   background: #dcdfe6;
   margin: 0 4px;
+  flex-shrink: 0;
 }
 
 .search-input {
-  width: 150px;
+  width: 130px;
 }
 :deep(.search-input .el-input__wrapper) {
   border-radius: 20px;
