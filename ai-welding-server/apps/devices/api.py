@@ -58,3 +58,17 @@ def list_devices(
         }
         for item in queryset
     ]
+
+
+@router.post("/{device_id}/report_fault", auth=JWTAuth(), response={200: dict, 404: dict})
+def report_device_fault(request, device_id: int):
+    try:
+        device = Device.objects.get(id=device_id)
+        if device.status == Device.STATUS_MAINTAINING:
+            return 200, {"message": "设备已处于维护中状态"}
+        device.status = Device.STATUS_MAINTAINING
+        device.save(update_fields=["status", "updated_at"])
+        logger.info("Device %s marked as maintaining by user_id=%s", device.device_code, getattr(request.auth, "id", None))
+        return 200, {"message": "故障上报成功，设备已转为维护中"}
+    except Device.DoesNotExist:
+        return 404, {"message": "设备不存在"}
