@@ -316,8 +316,8 @@ onUnmounted(() => {
 
 .device-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 20px;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 14px;
   align-content: start;
 }
 
@@ -325,7 +325,7 @@ onUnmounted(() => {
   background: #ffffff;
   border: 1px solid #ebeef5;
   border-radius: 12px;
-  padding: 16px;
+  padding: 12px;
   display: flex;
   flex-direction: column;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -357,13 +357,13 @@ onUnmounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 16px;
-  padding-top: 4px;
+  margin-bottom: 10px;
+  padding-top: 2px;
 }
 
 .device-code {
   margin: 0;
-  font-size: 18px;
+  font-size: 15px;
   font-weight: 700;
   color: #303133;
   display: flex;
@@ -374,41 +374,41 @@ onUnmounted(() => {
 
 .status-tag {
   font-weight: 600;
-  letter-spacing: 1px;
+  letter-spacing: 0.5px;
 }
 
 .card-body {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  margin-bottom: 20px;
+  gap: 8px;
+  margin-bottom: 12px;
   flex: 1;
 }
 
 .info-row {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 13px;
+  gap: 6px;
+  font-size: 12px;
   color: #606266;
 }
 
 .info-row .el-icon {
   color: #909399;
-  font-size: 14px;
+  font-size: 13px;
 }
 
 .card-footer {
   display: flex;
   justify-content: flex-end;
   align-items: center;
-  height: 32px;
+  height: 28px;
   border-top: 1px dashed #ebeef5;
-  padding-top: 12px;
+  padding-top: 8px;
 }
 
 .report-btn {
-  border-radius: 16px;
+  border-radius: 14px;
   transition: all 0.3s;
 }
 .report-btn:hover {
@@ -420,11 +420,11 @@ onUnmounted(() => {
   align-items: center;
   gap: 6px;
   color: #f56c6c;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
   background: rgba(245, 108, 108, 0.1);
-  padding: 6px 12px;
-  border-radius: 16px;
+  padding: 5px 10px;
+  border-radius: 14px;
   width: 100%;
   justify-content: center;
 }
