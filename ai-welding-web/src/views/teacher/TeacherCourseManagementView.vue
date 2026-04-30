@@ -676,7 +676,7 @@ function getDayInfo(dateString: string) {
               <span class="number-cell">{{ row.student_count }}</span>
             </template>
           </el-table-column>
-          <el-table-column label="上课时间" min-width="160">
+          <el-table-column label="上课时间" min-width="300">
             <template #default="{ row }">
               <div class="time-cell">
                 <span class="time-label">{{ formatTime(row.start_time) }}</span>
@@ -1264,6 +1264,7 @@ function getDayInfo(dateString: string) {
   display: flex;
   align-items: center;
   gap: 6px;
+  white-space: nowrap;
 }
 .time-label {
   font-family: 'Inter', monospace;
