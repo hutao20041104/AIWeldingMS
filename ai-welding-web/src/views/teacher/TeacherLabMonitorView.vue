@@ -69,6 +69,17 @@ const displayedStudents = computed(() => {
   return devices.value.flatMap(d => d.students)
 })
 
+const sortedDevices = computed(() => {
+  return [...devices.value].sort((a, b) => {
+    const isARunning = a.status === 'running' || a.students.length > 0 ? 1 : 0;
+    const isBRunning = b.status === 'running' || b.students.length > 0 ? 1 : 0;
+    if (isARunning !== isBRunning) {
+      return isBRunning - isARunning; // Running devices first
+    }
+    return a.id - b.id;
+  });
+})
+
 const runHours = computed(() => {
   if (!telemetryStartAt.value) return 0
   const diff = Date.now() - new Date(telemetryStartAt.value).getTime()
@@ -204,8 +215,13 @@ watch(
         </div>
       </header>
 
-      <div v-if="!hasActiveCourse" class="empty-state">当前无课程进行中</div>
-
+      <div v-if="!hasActiveCourse" class="ds-empty-state">
+        <div class="ds-empty-icon">
+          <el-icon :size="80"><Monitor /></el-icon>
+        </div>
+        <div class="ds-empty-text">当前无焊接实训课程进行中</div>
+        <div class="ds-empty-subtext">系统正处于待机模式，请等待排课计划开始</div>
+      </div>
       <template v-else>
         <div class="ds-body">
           <!-- LEFT -->
@@ -283,15 +299,12 @@ watch(
               </div>
             </div>
 
-            <div class="ds-section-label"><span class="dot orange"></span>焊接器材</div>
             <div class="ds-device-grid">
-              <div v-for="d in devices" :key="d.id"
+              <div v-for="d in sortedDevices" :key="d.id"
                 class="ds-device" :class="{ active: selectedDeviceId === d.id }"
                 @click="selectedDeviceId = d.id">
-                <div class="ds-dev-lights">
-                  <span class="lt red" :class="{ on: d.status === 'error' }"></span>
-                  <span class="lt yellow" :class="{ on: d.status === 'idle' }"></span>
-                  <span class="lt green" :class="{ on: d.status === 'running' || d.students.length > 0 }"></span>
+                <div class="ds-dev-status-badge" :class="d.status === 'running' || d.students.length > 0 ? 'running' : (d.status === 'error' ? 'error' : 'idle')">
+                  {{ d.status === 'running' || d.students.length > 0 ? '运行中' : (d.status === 'error' ? '故障' : '空闲') }}
                 </div>
                 <div class="ds-dev-icon">
                   <svg viewBox="0 0 40 40" class="welder-svg"><rect x="4" y="8" width="32" height="22" rx="3" fill="#1a4a6e" stroke="#36d5ff" stroke-width="0.8"/><rect x="8" y="11" width="14" height="8" rx="1" fill="#0a2a44"/><circle cx="28" cy="15" r="2.5" fill="#00e5ff" opacity="0.8"/><rect x="8" y="22" width="24" height="3" rx="1" fill="#0e3654"/><line x1="20" y1="30" x2="20" y2="35" stroke="#36d5ff" stroke-width="0.8"/></svg>
@@ -343,7 +356,17 @@ watch(
 .ds-time { font-size: 32px; font-weight: 800; color: #00e5ff; line-height: 1; font-family: 'Courier New', monospace; text-shadow: 0 0 15px rgba(0,229,255,0.6); }
 .ds-date { font-size: 12px; color: rgba(255,255,255,0.5); margin-top: 2px; }
 .ds-week { margin-left: 8px; color: rgba(0,229,255,0.6); }
-.ds-title { font-size: clamp(20px, 2.5vw, 30px); font-weight: 800; color: #fff; text-align: center; letter-spacing: 4px; text-shadow: 0 0 25px rgba(0,229,255,0.4); margin: 0; }
+.ds-title {
+  font-size: clamp(20px, 2.2vw, 26px);
+  font-family: 'Rajdhani', 'Orbitron', 'Space Grotesk', 'Exo 2', -apple-system, sans-serif;
+  font-weight: 900;
+  color: #ffffff;
+  letter-spacing: 4px;
+  filter: drop-shadow(0 0 10px rgba(14, 165, 233, 0.8));
+  text-align: center;
+  text-transform: uppercase;
+  margin: 0;
+}
 .ds-header-right { display: flex; align-items: center; gap: 10px; }
 .ds-user-name { color: rgba(255,255,255,0.8); font-size: 14px; }
 .ds-btn-outline { background: transparent; border: 1px solid rgba(0,229,255,0.4); color: #00e5ff; padding: 6px 14px; border-radius: 4px; cursor: pointer; font-size: 12px; transition: all 0.3s; }
@@ -356,21 +379,22 @@ watch(
 /* TECH PANELS */
 .ds-panel, .ds-chart-card {
   position: relative;
-  background: rgba(8, 44, 76, 0.42);
-  border: 1px solid rgba(78, 210, 246, 0.28);
-  border-radius: 4px; /* Harder corners for tech look */
-  padding: 12px;
-  box-shadow: inset 0 0 20px rgba(0, 229, 255, 0.05);
-  backdrop-filter: blur(4px);
+  background: linear-gradient(135deg, rgba(5, 28, 56, 0.65), rgba(4, 18, 38, 0.85));
+  border: 1px solid rgba(0, 229, 255, 0.2);
+  border-radius: 8px; /* Softer tech corners */
+  padding: 16px;
+  box-shadow: inset 0 0 30px rgba(0, 229, 255, 0.03), 0 8px 32px rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 }
 .ds-panel::before, .ds-panel::after, .ds-chart-card::before, .ds-chart-card::after {
-  content: ''; position: absolute; width: 12px; height: 12px; border: 2px solid transparent; pointer-events: none;
+  content: ''; position: absolute; width: 16px; height: 16px; border: 2px solid transparent; pointer-events: none;
 }
 .ds-panel::before, .ds-chart-card::before {
-  top: -1px; left: -1px; border-top-color: #00e5ff; border-left-color: #00e5ff;
+  top: -1px; left: -1px; border-top-color: #00e5ff; border-left-color: #00e5ff; border-top-left-radius: 8px;
 }
 .ds-panel::after, .ds-chart-card::after {
-  bottom: -1px; right: -1px; border-bottom-color: #00e5ff; border-right-color: #00e5ff;
+  bottom: -1px; right: -1px; border-bottom-color: #00e5ff; border-right-color: #00e5ff; border-bottom-right-radius: 8px;
 }
 
 /* LEFT */
@@ -399,48 +423,136 @@ watch(
 .ds-today-date { font-size: 12px; color: rgba(255,255,255,0.5); margin: 4px 0; font-family: 'Courier New', monospace; }
 .ds-today-count { font-size: 13px; color: rgba(255,255,255,0.7); }
 
-.ds-people { display: flex; gap: 14px; margin-top: auto; padding-top: 10px; }
-.ds-person { flex: 1; text-align: center; background: rgba(0,20,40,0.3); border: 1px solid rgba(0,229,255,0.1); padding: 10px 0; border-radius: 4px; }
-.ds-person-avatar { border: 2px solid rgba(0,229,255,0.4); box-shadow: 0 0 10px rgba(0,229,255,0.2); }
-.ds-person-name { font-size: 14px; font-weight: 600; color: #fff; margin-top: 8px; }
-.ds-person-role { font-size: 11px; color: #00e5ff; text-transform: uppercase; letter-spacing: 1px; margin-top: 2px; }
+.ds-people { display: flex; gap: 14px; margin-top: auto; padding-top: 14px; }
+.ds-person {
+  flex: 1;
+  text-align: center;
+  background: linear-gradient(180deg, rgba(5, 28, 56, 0.4), rgba(4, 18, 38, 0.7));
+  border: 1px solid rgba(0, 229, 255, 0.15);
+  padding: 16px 0 12px;
+  border-radius: 8px;
+  position: relative;
+  box-shadow: inset 0 0 20px rgba(0, 229, 255, 0.03), 0 4px 12px rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(8px);
+  overflow: hidden;
+  transition: all 0.3s ease;
+}
+.ds-person::before {
+  content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 3px; background: linear-gradient(90deg, transparent, #00e5ff, transparent); opacity: 0.7;
+}
+.ds-person:hover {
+  transform: translateY(-2px);
+  border-color: rgba(0, 229, 255, 0.4);
+  box-shadow: inset 0 0 20px rgba(0, 229, 255, 0.1), 0 6px 16px rgba(0, 0, 0, 0.4);
+}
+.ds-person-avatar {
+  border: 2px solid rgba(0, 229, 255, 0.6);
+  box-shadow: 0 0 15px rgba(0, 229, 255, 0.3);
+  background: rgba(0, 20, 40, 0.8);
+  padding: 2px;
+}
+.ds-person-name {
+  font-size: 15px;
+  font-weight: 700;
+  color: #fff;
+  margin-top: 10px;
+  letter-spacing: 1px;
+  text-shadow: 0 0 5px rgba(0, 229, 255, 0.4);
+}
+.ds-person-role {
+  display: inline-block;
+  font-size: 11px;
+  color: #00e5ff;
+  background: rgba(0, 229, 255, 0.1);
+  border: 1px solid rgba(0, 229, 255, 0.3);
+  padding: 2px 8px;
+  border-radius: 12px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-top: 6px;
+  font-weight: 600;
+}
 
 /* CENTER */
-.ds-center { display: flex; flex-direction: column; gap: 14px; overflow-y: auto; padding: 0 4px; }
-.ds-gauges { display: flex; justify-content: center; align-items: center; gap: 24px; padding: 10px 0; }
+.ds-center { display: flex; flex-direction: column; gap: 14px; overflow: hidden; padding: 0 4px; }
+.ds-gauges { display: flex; justify-content: center; align-items: center; gap: 32px; padding: 16px 0; }
 .ds-gauge { position: relative; display: flex; align-items: center; justify-content: center; }
-.ds-gauge svg { width: 120px; height: 120px; }
-.ds-gauge.good svg { width: 140px; height: 140px; }
-.gauge-bg { fill: none; stroke: rgba(0,229,255,0.05); stroke-width: 6; }
-.gauge-ring { fill: none; stroke-width: 4; stroke-linecap: round; stroke-dasharray: 280 400; transform: rotate(-90deg); transform-origin: center; animation: pulseRing 3s infinite alternate ease-in-out; }
-@keyframes pulseRing { 0% { opacity: 0.7; } 100% { opacity: 1; filter: drop-shadow(0 0 12px currentColor); } }
+.ds-gauge svg { width: 130px; height: 130px; filter: drop-shadow(0 0 8px currentColor); }
+.ds-gauge.good svg { width: 150px; height: 150px; }
+.gauge-bg { fill: none; stroke: rgba(255, 255, 255, 0.05); stroke-width: 8; }
+.gauge-ring { fill: none; stroke-width: 6; stroke-linecap: round; stroke-dasharray: 280 400; transform: rotate(-90deg); transform-origin: center; animation: pulseRing 3s infinite alternate ease-in-out; }
+@keyframes pulseRing { 0% { opacity: 0.8; } 100% { opacity: 1; filter: drop-shadow(0 0 16px currentColor) brightness(1.2); } }
 .ng-ring { stroke: #ff073a; color: #ff073a; }
 .good-ring { stroke: #00e5ff; color: #00e5ff; stroke-dasharray: 330 400; }
 .ai-ring { stroke: #39ff14; color: #39ff14; }
 
 .gauge-inner { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-.gauge-num { font-size: 32px; font-weight: 800; color: #fff; line-height: 1; font-family: 'Courier New', monospace; }
-.gauge-num.lg { font-size: 38px; }
-.ng .gauge-num { text-shadow: 0 0 15px rgba(255,7,58,0.6); }
-.good .gauge-num { text-shadow: 0 0 15px rgba(0,229,255,0.6); }
-.ai .gauge-num { text-shadow: 0 0 15px rgba(57,255,20,0.6); }
-.gauge-label { font-size: 12px; color: rgba(255,255,255,0.6); margin-top: 6px; letter-spacing: 1px; font-weight: 600; }
+.gauge-num { font-size: 36px; font-weight: 800; color: #fff; line-height: 1; font-family: 'Rajdhani', 'Courier New', monospace; letter-spacing: 2px; }
+.gauge-num.lg { font-size: 44px; }
+.ng .gauge-num { text-shadow: 0 0 20px rgba(255,7,58,0.8); }
+.good .gauge-num { text-shadow: 0 0 20px rgba(0,229,255,0.8); }
+.ai .gauge-num { text-shadow: 0 0 20px rgba(57,255,20,0.8); }
+.gauge-label { font-size: 13px; color: rgba(255,255,255,0.8); margin-top: 8px; letter-spacing: 2px; font-weight: 700; font-family: 'Exo 2', sans-serif; text-transform: uppercase; }
 
-.ds-section-label { font-size: 14px; font-weight: 600; color: #d7f6ff; display: flex; align-items: center; gap: 8px; margin: 6px 0; text-shadow: 0 0 8px rgba(0,229,255,0.4); }
+.ds-section-label { font-size: 15px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 8px; margin: 10px 0 6px; letter-spacing: 2px; text-shadow: 0 0 10px rgba(0,229,255,0.6); font-family: 'Rajdhani', sans-serif; }
 
-.ds-device-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 12px; flex: 1; min-height: 0; overflow-y: auto; align-content: start; padding-right: 4px; }
-.ds-device { background: rgba(0,20,40,0.6); border: 1px solid rgba(0,229,255,0.15); border-radius: 6px; padding: 10px; cursor: pointer; transition: all 0.3s; text-align: center; position: relative; box-shadow: inset 0 0 10px rgba(0,229,255,0.05); }
-.ds-device { background: rgba(7, 34, 60, 0.58); border: 1px solid rgba(86, 214, 246, 0.26); border-radius: 6px; padding: 10px; cursor: pointer; transition: all 0.3s; text-align: center; position: relative; box-shadow: inset 0 0 10px rgba(0,229,255,0.06); }
-.ds-device:hover { border-color: rgba(116, 226, 252, 0.72); background: rgba(10, 48, 80, 0.68); box-shadow: 0 0 16px rgba(0,229,255,0.24), inset 0 0 15px rgba(0,229,255,0.12); transform: translateY(-2px); }
-.ds-device.active { border-color: #00e5ff; box-shadow: 0 0 20px rgba(0,229,255,0.4), inset 0 0 20px rgba(0,229,255,0.2); }
-.ds-device.active::after { content: ''; position: absolute; inset: -4px; border: 1px solid #00e5ff; border-radius: 8px; opacity: 0.4; pointer-events: none; }
+.ds-device-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; flex: 1; min-height: 0; overflow-y: auto; align-content: start; padding-right: 4px; margin-top: 30px; }
+.ds-device {
+  background: linear-gradient(180deg, rgba(7, 34, 60, 0.58), rgba(2, 10, 21, 0.8));
+  border: 1px solid rgba(0, 229, 255, 0.15);
+  border-radius: 8px;
+  padding: 14px 10px;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+  text-align: center;
+  position: relative;
+  box-shadow: inset 0 0 10px rgba(0, 229, 255, 0.02), 0 4px 12px rgba(0, 0, 0, 0.2);
+  backdrop-filter: blur(8px);
+}
+.ds-device:hover {
+  border-color: rgba(0, 229, 255, 0.6);
+  background: linear-gradient(180deg, rgba(10, 48, 80, 0.7), rgba(4, 15, 30, 0.9));
+  box-shadow: 0 0 20px rgba(0, 229, 255, 0.2), inset 0 0 15px rgba(0, 229, 255, 0.1);
+  transform: translateY(-4px);
+}
+.ds-device.active {
+  border-color: #00e5ff;
+  background: linear-gradient(180deg, rgba(12, 60, 95, 0.8), rgba(5, 20, 40, 0.95));
+  box-shadow: 0 0 25px rgba(0, 229, 255, 0.4), inset 0 0 25px rgba(0, 229, 255, 0.2);
+}
+.ds-device.active::after {
+  content: ''; position: absolute; inset: -3px; border: 1px solid #00e5ff; border-radius: 10px; opacity: 0.5; pointer-events: none; animation: pulseBorder 2s infinite;
+}
+@keyframes pulseBorder { 0% { opacity: 0.3; transform: scale(1); } 50% { opacity: 0.6; transform: scale(1.02); } 100% { opacity: 0.3; transform: scale(1); } }
 
-.ds-dev-lights { display: flex; justify-content: center; gap: 6px; margin-bottom: 8px; }
-.lt { width: 8px; height: 8px; border-radius: 50%; opacity: 0.2; }
-.lt.red { background: #ff073a; }
-.lt.yellow { background: #fadb14; }
-.lt.green { background: #39ff14; }
-.lt.on { opacity: 1; box-shadow: 0 0 10px currentColor, inset 0 0 4px #fff; }
+.ds-dev-status-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  margin-bottom: 8px;
+  border: 1px solid transparent;
+}
+.ds-dev-status-badge.running {
+  color: #39ff14;
+  background: rgba(57, 255, 20, 0.1);
+  border-color: rgba(57, 255, 20, 0.4);
+  box-shadow: 0 0 10px rgba(57, 255, 20, 0.2);
+}
+.ds-dev-status-badge.idle {
+  color: #fadb14;
+  background: rgba(250, 219, 20, 0.1);
+  border-color: rgba(250, 219, 20, 0.4);
+  box-shadow: 0 0 10px rgba(250, 219, 20, 0.2);
+}
+.ds-dev-status-badge.error {
+  color: #ff073a;
+  background: rgba(255, 7, 58, 0.1);
+  border-color: rgba(255, 7, 58, 0.4);
+  box-shadow: 0 0 10px rgba(255, 7, 58, 0.2);
+}
 
 .ds-dev-icon { height: 50px; display: flex; align-items: center; justify-content: center; filter: drop-shadow(0 0 6px rgba(0,229,255,0.2)); }
 .welder-svg { width: 50px; height: 50px; }
@@ -452,8 +564,34 @@ watch(
 .ds-chart-title { font-size: 13px; font-weight: 600; color: #d7f6ff; margin-bottom: 6px; display: flex; align-items: center; gap: 8px; text-shadow: 0 0 8px rgba(0,229,255,0.4); }
 .ds-chart-box { flex: 1; min-height: 120px; }
 
-.empty-state { flex: 1; display: grid; place-items: center; color: rgba(0,229,255,0.4); font-size: 24px; letter-spacing: 2px; }
-
+.ds-empty-state {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: rgba(0, 229, 255, 0.6);
+  text-shadow: 0 0 10px rgba(0, 229, 255, 0.2);
+}
+.ds-empty-icon {
+  margin-bottom: 20px;
+  animation: float 4s ease-in-out infinite;
+  filter: drop-shadow(0 0 15px rgba(0, 229, 255, 0.4));
+}
+.ds-empty-text {
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: 4px;
+}
+.ds-empty-subtext {
+  font-size: 14px;
+  margin-top: 8px;
+  color: rgba(255, 255, 255, 0.4);
+}
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
 /* Hide monitor scrollbars but keep scrolling */
 .screen-mask,
 .ds-left,
