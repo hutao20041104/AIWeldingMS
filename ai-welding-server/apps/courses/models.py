@@ -89,3 +89,30 @@ class DeviceTelemetry(models.Model):
             models.Index(fields=["course", "device", "-recorded_at"], name="idx_telemetry_course_dev_time"),
             models.Index(fields=["course", "-recorded_at"], name="idx_telemetry_course_time"),
         ]
+
+
+class CourseGrade(models.Model):
+    course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name="grades", verbose_name="课程")
+    student = models.ForeignKey(Student, on_delete=models.CASCADE, related_name="grades", verbose_name="学生")
+    teacher = models.ForeignKey(Teacher, on_delete=models.CASCADE, related_name="given_grades", verbose_name="评分教师")
+    ai_score = models.FloatField(null=True, blank=True, verbose_name="AI评分")
+    teacher_score = models.FloatField(null=True, blank=True, verbose_name="教师评分")
+    final_score = models.FloatField(null=True, blank=True, verbose_name="最终评分")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="创建时间")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="更新时间")
+
+    class Meta:
+        db_table = "course_grades"
+        verbose_name = "课程成绩"
+        verbose_name_plural = "课程成绩"
+        constraints = [
+            models.UniqueConstraint(fields=["course", "student"], name="uniq_course_student_grade"),
+        ]
+
+    def save(self, *args, **kwargs):
+        if self.ai_score is not None and self.teacher_score is not None:
+            self.final_score = round(self.ai_score * 0.3 + self.teacher_score * 0.7, 2)
+        else:
+            self.final_score = None
+        super().save(*args, **kwargs)
+

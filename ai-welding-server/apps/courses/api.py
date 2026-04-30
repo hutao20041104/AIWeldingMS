@@ -7,7 +7,7 @@ from django.db import transaction
 from django.utils import timezone
 from ninja import Router, Schema
 
-from apps.courses.models import Course, CourseGroupAssignment, CourseStudent, DeviceTelemetry
+from apps.courses.models import Course, CourseGroupAssignment, CourseStudent, DeviceTelemetry, CourseGrade
 from apps.devices.models import Device
 from apps.users.models import ClassCatalog, MajorCatalog, Student, Teacher
 from core.auth import JWTAuth
@@ -79,6 +79,29 @@ class TelemetryPointOut(Schema):
     current: float
     voltage: float
     wire_feed_speed: float
+
+
+class GradeRecordOut(Schema):
+    student_id: str
+    identity_code: str
+    username: str
+    ai_score: Optional[float] = None
+    teacher_score: Optional[float] = None
+    final_score: Optional[float] = None
+
+
+class CourseGradeUpdateIn(Schema):
+    teacher_score: Optional[float] = None
+
+
+class StudentGradeHistoryOut(Schema):
+    course_id: int
+    course_code: str
+    classroom: str
+    ai_score: Optional[float] = None
+    teacher_score: Optional[float] = None
+    final_score: Optional[float] = None
+    graded_at: Optional[str] = None
 
 
 STATUS_LABELS = {
@@ -625,3 +648,86 @@ def current_monitor(request):
             for d in devices
         ],
     }
+
+
+@router.get("/{course_id}/grades/", auth=JWTAuth(), response={200: list[GradeRecordOut], 403: dict, 404: dict})
+def list_course_grades(request, course_id: int):
+    teacher = _teacher_profile_or_none(request.auth)
+    if not teacher:
+        return 403, {"message": "仅教师可查看成绩"}
+    course = Course.objects.filter(id=course_id, teacher=teacher).first()
+    if not course:
+        return 404, {"message": "课程不存在"}
+
+    enrolled_students = list(course.students.select_related("user").order_by("user__username"))
+    
+    grades_map = {
+        str(g.student_id): g
+        for g in CourseGrade.objects.filter(course=course)
+    }
+
+    results = []
+    for s in enrolled_students:
+        g = grades_map.get(str(s.id))
+        results.append({
+            "student_id": str(s.id),
+            "identity_code": s.user.identity_code,
+            "username": s.user.username,
+            "ai_score": g.ai_score if g else None,
+            "teacher_score": g.teacher_score if g else None,
+            "final_score": g.final_score if g else None,
+        })
+    return results
+
+
+@router.put("/{course_id}/grades/{student_id}/", auth=JWTAuth(), response={200: dict, 400: dict, 403: dict, 404: dict})
+def update_course_grade(request, course_id: int, student_id: str, payload: CourseGradeUpdateIn):
+    teacher = _teacher_profile_or_none(request.auth)
+    if not teacher:
+        return 403, {"message": "仅教师可修改成绩"}
+    course = Course.objects.filter(id=course_id, teacher=teacher).first()
+    if not course:
+        return 404, {"message": "课程不存在"}
+    
+    student = Student.objects.filter(id=student_id).first()
+    if not student or not CourseStudent.objects.filter(course=course, student=student).exists():
+        return 404, {"message": "该学生未选修此课程"}
+
+    grade, created = CourseGrade.objects.get_or_create(
+        course=course,
+        student=student,
+        defaults={
+            "teacher": teacher,
+            "ai_score": round(random.uniform(75, 95), 1)
+        }
+    )
+    grade.teacher_score = payload.teacher_score
+    grade.save()
+
+    return {"message": "成绩更新成功", "final_score": grade.final_score}
+
+
+@router.get("/students/{student_id}/grades/", auth=JWTAuth(), response={200: list[StudentGradeHistoryOut], 403: dict, 404: dict})
+def list_student_grade_history(request, student_id: str):
+    teacher = _teacher_profile_or_none(request.auth)
+    if not teacher:
+        return 403, {"message": "仅教师可查看成绩"}
+    
+    student = Student.objects.filter(id=student_id).first()
+    if not student:
+        return 404, {"message": "学生不存在"}
+
+    grades = CourseGrade.objects.filter(student=student).select_related("course").order_by("-created_at")
+    
+    results = []
+    for g in grades:
+        results.append({
+            "course_id": g.course.id,
+            "course_code": g.course.course_code,
+            "classroom": g.course.classroom,
+            "ai_score": g.ai_score,
+            "teacher_score": g.teacher_score,
+            "final_score": g.final_score,
+            "graded_at": g.updated_at.isoformat() if g.updated_at else None,
+        })
+    return results

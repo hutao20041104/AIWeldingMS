@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { ElMessage, type UploadRequestOptions } from 'element-plus'
+import { User, Message, Iphone, Camera, Postcard, Key, Loading } from '@element-plus/icons-vue'
 import { API_BASE_URL, currentUser } from '../../composables/useAuth'
 
 const loading = ref(false)
@@ -121,109 +122,335 @@ onMounted(() => {
 <template>
   <section class="module-page" v-loading="loading">
     <div class="profile-layout">
-      <el-card class="profile-side" shadow="hover">
+      <!-- 左侧：个人信息展示卡片 -->
+      <div class="profile-side glass-card">
+        <div class="profile-banner"></div>
         <div class="hero">
-          <el-avatar :size="112" :src="avatarUrl()" />
-          <h3>{{ form.username || '教师账号' }}</h3>
+          <div class="avatar-wrapper">
+            <el-avatar :size="120" :src="avatarUrl()" class="user-avatar" />
+            <el-upload 
+              :show-file-list="false" 
+              :http-request="uploadAvatar" 
+              accept=".jpg,.jpeg,.png,.webp" 
+              class="avatar-uploader"
+              :disabled="uploading"
+            >
+              <div class="avatar-overlay">
+                <el-icon :size="24" class="is-loading" v-if="uploading"><Loading /></el-icon>
+                <el-icon :size="24" v-else><Camera /></el-icon>
+              </div>
+            </el-upload>
+          </div>
+          <h3>{{ form.username || '未知用户' }}</h3>
           <p>{{ form.email || '未设置邮箱' }}</p>
+          
+          <div class="badges">
+            <el-tag effect="light" round class="badge-role">
+              {{ form.role === 'teacher' ? '教师' : form.role || '用户' }}
+            </el-tag>
+          </div>
         </div>
-        <el-upload :show-file-list="false" :http-request="uploadAvatar" accept=".jpg,.jpeg,.png,.webp" class="upload-btn">
-          <el-button :loading="uploading" round>更换头像</el-button>
-        </el-upload>
+        
         <div class="meta-list">
-          <div><span>身份编号</span><b>{{ form.identity_code }}</b></div>
-          <div><span>角色</span><b>{{ form.role === 'teacher' ? '教师' : form.role }}</b></div>
+          <div class="meta-item">
+            <div class="meta-icon"><el-icon><Postcard /></el-icon></div>
+            <div class="meta-content">
+              <span class="meta-label">身份编号</span>
+              <span class="meta-val">{{ form.identity_code || '暂无' }}</span>
+            </div>
+          </div>
         </div>
-      </el-card>
+      </div>
 
-      <el-card class="profile-main" shadow="hover">
-        <div class="form-title">个人信息维护</div>
-        <el-form label-width="90px" class="profile-form">
-          <el-form-item label="用户名">
-            <el-input v-model="form.username" placeholder="请输入用户名" />
-          </el-form-item>
-          <el-form-item label="邮箱">
-            <el-input v-model="form.email" placeholder="请输入邮箱" />
-          </el-form-item>
-          <el-form-item label="手机号">
-            <el-input v-model="form.tel" placeholder="请输入手机号" maxlength="11" />
-          </el-form-item>
-        </el-form>
-        <div class="actions">
-          <el-button type="primary" :loading="saving" @click="saveProfile" round>保存修改</el-button>
+      <!-- 右侧：表单维护卡片 -->
+      <div class="profile-main glass-card">
+        <div class="form-header">
+          <h2>个人资料设置</h2>
+          <p>管理您的基本信息和联系方式</p>
         </div>
-      </el-card>
+        
+        <el-form label-position="top" class="custom-form">
+          <div class="form-row">
+            <el-form-item label="登录账号(工号)">
+              <el-input :model-value="form.identity_code" disabled size="large">
+                <template #prefix><el-icon><Key /></el-icon></template>
+              </el-input>
+              <div class="form-help">不可修改</div>
+            </el-form-item>
+          </div>
+
+          <div class="form-row">
+            <el-form-item label="姓名/显示名称">
+              <el-input v-model="form.username" placeholder="请输入显示名称" size="large">
+                <template #prefix><el-icon><User /></el-icon></template>
+              </el-input>
+            </el-form-item>
+          </div>
+          
+          <div class="form-row">
+            <el-form-item label="邮箱地址">
+              <el-input v-model="form.email" placeholder="请输入电子邮箱" size="large">
+                <template #prefix><el-icon><Message /></el-icon></template>
+              </el-input>
+            </el-form-item>
+          </div>
+          
+          <div class="form-row">
+            <el-form-item label="联系电话">
+              <el-input v-model="form.tel" placeholder="请输入手机号" maxlength="11" size="large">
+                <template #prefix><el-icon><Iphone /></el-icon></template>
+              </el-input>
+            </el-form-item>
+          </div>
+        </el-form>
+        
+        <div class="actions">
+          <el-button type="primary" size="large" :loading="saving" @click="saveProfile" class="save-btn">
+            保存更改
+          </el-button>
+        </div>
+      </div>
     </div>
   </section>
 </template>
 
 <style scoped>
 .profile-layout {
-  max-width: 980px;
-  margin: 24px auto;
+  max-width: 1000px;
+  margin: 0 auto;
   display: grid;
-  grid-template-columns: 320px 1fr;
-  gap: 16px;
+  grid-template-columns: 340px 1fr;
+  gap: 24px;
+  padding-top: 20px;
 }
+
+.glass-card {
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  border-radius: 20px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.04);
+  overflow: hidden;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+.glass-card:hover {
+  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.06);
+}
+
+/* 左侧样式 */
 .profile-side {
-  border-radius: 18px;
-  background: linear-gradient(145deg, rgba(255, 255, 255, 0.95), rgba(240, 248, 255, 0.92));
+  display: flex;
+  flex-direction: column;
 }
+
+.profile-banner {
+  height: 120px;
+  background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+  position: relative;
+}
+
 .hero {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
+  padding: 0 24px 24px;
+  margin-top: -60px;
   text-align: center;
-  gap: 8px;
-  padding: 10px 0 14px;
 }
+
+.avatar-wrapper {
+  position: relative;
+  border-radius: 50%;
+  padding: 4px;
+  background: #fff;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+  margin-bottom: 16px;
+}
+
+.user-avatar {
+  display: block;
+}
+
+.avatar-overlay {
+  position: absolute;
+  inset: 4px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.5);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.3s;
+  cursor: pointer;
+}
+
+.avatar-uploader {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  overflow: hidden;
+}
+
+.avatar-uploader:hover .avatar-overlay {
+  opacity: 1;
+}
+
 .hero h3 {
-  margin: 8px 0 0;
+  margin: 0 0 4px;
   font-size: 22px;
+  color: #1e293b;
+  font-weight: 700;
 }
+
 .hero p {
+  margin: 0 0 16px;
+  color: #64748b;
+  font-size: 14px;
+}
+
+.badges {
+  margin-bottom: 20px;
+}
+
+.badge-role {
+  padding: 0 16px;
+  height: 28px;
+  font-weight: 600;
+  border: none;
+  background-color: rgba(59, 130, 246, 0.1);
+  color: #3b82f6;
+}
+
+.meta-list {
+  padding: 0 24px 24px;
+}
+
+.meta-item {
+  display: flex;
+  align-items: center;
+  padding: 16px;
+  background: #f8fafc;
+  border-radius: 16px;
+  gap: 16px;
+}
+
+.meta-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: #fff;
+  color: #3b82f6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+}
+
+.meta-content {
+  display: flex;
+  flex-direction: column;
+}
+
+.meta-label {
+  font-size: 12px;
+  color: #94a3b8;
+  margin-bottom: 2px;
+}
+
+.meta-val {
+  font-size: 15px;
+  color: #334155;
+  font-weight: 600;
+  font-family: 'Courier New', monospace;
+}
+
+/* 右侧样式 */
+.profile-main {
+  padding: 32px 40px;
+}
+
+.form-header {
+  margin-bottom: 30px;
+}
+
+.form-header h2 {
+  margin: 0 0 8px;
+  font-size: 24px;
+  color: #0f172a;
+}
+
+.form-header p {
   margin: 0;
   color: #64748b;
+  font-size: 14px;
 }
-.upload-btn {
-  display: flex;
-  justify-content: center;
-  margin-bottom: 16px;
+
+/* 覆盖 Element Plus 表单样式 */
+:deep(.custom-form .el-form-item__label) {
+  font-weight: 600;
+  color: #475569;
+  padding-bottom: 6px;
 }
-.meta-list {
-  display: grid;
-  gap: 10px;
+
+:deep(.custom-form .el-input__wrapper) {
+  border-radius: 10px;
+  box-shadow: 0 0 0 1px #e2e8f0 inset;
+  background-color: #f8fafc;
+  padding: 0 16px;
+  transition: all 0.3s;
 }
-.meta-list > div {
-  padding: 10px 12px;
-  border-radius: 12px;
-  background: rgba(59, 130, 246, 0.08);
-  display: flex;
-  justify-content: space-between;
+
+:deep(.custom-form .el-input__wrapper:hover) {
+  box-shadow: 0 0 0 1px #cbd5e1 inset;
 }
-.meta-list span {
-  color: #64748b;
+
+:deep(.custom-form .el-input__wrapper.is-focus) {
+  box-shadow: 0 0 0 1px #3b82f6 inset, 0 0 0 3px rgba(59, 130, 246, 0.15) !important;
+  background-color: #fff;
 }
-.profile-main {
-  border-radius: 18px;
-  background: rgba(255, 255, 255, 0.98);
+
+.form-row {
+  margin-bottom: 20px;
 }
-.form-title {
-  font-size: 20px;
-  font-weight: 700;
-  margin-bottom: 16px;
+
+.form-help {
+  font-size: 12px;
+  color: #94a3b8;
+  margin-top: 4px;
+  line-height: 1.2;
 }
-.profile-form {
-  padding-top: 8px;
-}
+
 .actions {
-  margin-top: 14px;
+  margin-top: 40px;
   display: flex;
   justify-content: flex-end;
 }
+
+.save-btn {
+  padding: 0 36px;
+  border-radius: 12px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  box-shadow: 0 4px 14px rgba(59, 130, 246, 0.4);
+  transition: all 0.3s;
+}
+
+.save-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(59, 130, 246, 0.5);
+}
+
 @media (max-width: 920px) {
   .profile-layout {
     grid-template-columns: 1fr;
+  }
+  .profile-main {
+    padding: 24px;
   }
 }
 </style>
